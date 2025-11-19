@@ -1035,6 +1035,8 @@ class DatabaseManager:
         cursor = conn.cursor()
         cursor.execute('INSERT OR IGNORE INTO users (user_id, username, join_date) VALUES (?, ?, ?)',
                        (user_id, username, datetime.now().isoformat()))
+        cursor.execute('INSERT OR IGNORE INTO credits (user_id, amount, timestamp) VALUES (?, ?, ?)',
+                       (user_id, 1500, datetime.now().isoformat()))
         conn.commit()
         conn.close()
     
@@ -1078,6 +1080,115 @@ class DatabaseManager:
         attacks = cursor.fetchall()
         conn.close()
         return attacks
+    
+    def get_user_credits(self, user_id):
+        conn = sqlite3.connect(self.db_file)
+        cursor = conn.cursor()
+        cursor.execute('SELECT amount, expiry_date FROM credits WHERE user_id = ?', (user_id,))
+        result = cursor.fetchone()
+        conn.close()
+        if result:
+            amount, expiry = result
+            if expiry and datetime.fromisoformat(expiry) < datetime.now():
+                return 0
+            return amount
+        return 0
+    
+    def deduct_credits(self, user_id, amount=1):
+        conn = sqlite3.connect(self.db_file)
+        cursor = conn.cursor()
+        cursor.execute('SELECT amount, expiry_date FROM credits WHERE user_id = ?', (user_id,))
+        result = cursor.fetchone()
+        
+        if not result:
+            conn.close()
+            return False
+        
+        current_amount, expiry = result
+        if expiry and datetime.fromisoformat(expiry) < datetime.now():
+            conn.close()
+            return False
+        
+        if current_amount < amount:
+            conn.close()
+            return False
+        
+        cursor.execute('UPDATE credits SET amount = amount - ? WHERE user_id = ? AND amount >= ?', 
+                      (amount, user_id, amount))
+        success = cursor.rowcount > 0
+        conn.commit()
+        conn.close()
+        return success
+    
+    def redeem_code(self, user_id, code):
+        conn = sqlite3.connect(self.db_file)
+        cursor = conn.cursor()
+        
+        try:
+            cursor.execute('SELECT amount, days, used_by FROM redeem_codes WHERE code = ?', (code,))
+            result = cursor.fetchone()
+            
+            if not result:
+                conn.close()
+                return False, "Invalid code!"
+            
+            amount, days, used_by = result
+            
+            if used_by:
+                conn.close()
+                return False, "Code already used!"
+            
+            new_expiry = None if days == 0 else (datetime.now() + timedelta(days=days)).isoformat()
+            
+            cursor.execute('SELECT amount, expiry_date FROM credits WHERE user_id = ?', (user_id,))
+            current = cursor.fetchone()
+            
+            if current:
+                current_amount, current_expiry = current
+                
+                if current_expiry and datetime.fromisoformat(current_expiry) < datetime.now():
+                    new_amount = amount
+                    final_expiry = new_expiry
+                else:
+                    new_amount = current_amount + amount
+                    if days == 0:
+                        final_expiry = None
+                    elif new_expiry and current_expiry:
+                        final_expiry = max(new_expiry, current_expiry)
+                    elif new_expiry:
+                        final_expiry = new_expiry
+                    else:
+                        final_expiry = current_expiry
+                
+                cursor.execute('UPDATE credits SET amount = ?, expiry_date = ? WHERE user_id = ?',
+                              (new_amount, final_expiry, user_id))
+                credit_success = cursor.rowcount > 0
+            else:
+                cursor.execute('INSERT INTO credits (user_id, amount, expiry_date, timestamp) VALUES (?, ?, ?, ?)',
+                              (user_id, amount, new_expiry, datetime.now().isoformat()))
+                credit_success = cursor.rowcount > 0
+            
+            if not credit_success:
+                conn.rollback()
+                conn.close()
+                return False, "Failed to update credits!"
+            
+            cursor.execute('UPDATE redeem_codes SET used_by = ?, used_at = ? WHERE code = ?',
+                          (user_id, datetime.now().isoformat(), code))
+            
+            if cursor.rowcount == 0:
+                conn.rollback()
+                conn.close()
+                return False, "Failed to mark code as used!"
+            
+            conn.commit()
+            conn.close()
+            return True, f"Successfully redeemed {amount} credits!"
+        
+        except Exception as e:
+            conn.rollback()
+            conn.close()
+            return False, f"Error redeeming code: {str(e)}"
 
 db_manager = DatabaseManager()
 active_attackers = {}
@@ -1086,7 +1197,8 @@ def get_user_keyboard():
     """User menu keyboard with buttons"""
     keyboard = [
         [KeyboardButton("💣 Start Attack"), KeyboardButton("🛑 Stop Attack")],
-        [KeyboardButton("📊 My Stats"), KeyboardButton("📋 My History")],
+        [KeyboardButton("📊 My Stats"), KeyboardButton("💰 My Credits")],
+        [KeyboardButton("🎫 Redeem Code"), KeyboardButton("📋 My History")],
         [KeyboardButton("❓ Help"), KeyboardButton("ℹ️ About")]
     ]
     return ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
@@ -1323,6 +1435,57 @@ Made with 💣 for power users!
 """
     await update.message.reply_text(about_msg, parse_mode='Markdown')
 
+async def credits_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    credits = db_manager.get_user_credits(user_id)
+    is_admin = user_id in ADMIN_IDS
+    
+    if is_admin:
+        msg = f"""
+💰 *Your Credits*
+━━━━━━━━━━━━━━━━━━━━━
+
+🔥 *Credits:* ∞ (Admin)
+👑 *Status:* Admin - Unlimited
+
+You have unlimited attacks!
+"""
+    else:
+        msg = f"""
+💰 *Your Credits*
+━━━━━━━━━━━━━━━━━━━━━
+
+💎 *Available Credits:* {credits}
+💣 *Cost per Attack:* 1 credit
+
+Use 🎫 Redeem Code to add more credits!
+"""
+    await update.message.reply_text(msg, parse_mode='Markdown')
+
+async def redeem_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    
+    if context.args:
+        code = context.args[0].upper()
+        success, message = db_manager.redeem_code(user_id, code)
+        
+        if success:
+            credits = db_manager.get_user_credits(user_id)
+            await update.message.reply_text(
+                f"✅ {message}\n\n💰 *Total Credits:* {credits}",
+                parse_mode='Markdown'
+            )
+        else:
+            await update.message.reply_text(f"❌ {message}", parse_mode='Markdown')
+    else:
+        await update.message.reply_text(
+            "🎫 *Redeem Code*\n\n"
+            "Send code like: `/redeem YOURCODE123`\n\n"
+            "Or use the 🎫 Redeem Code button and send the code!",
+            parse_mode='Markdown'
+        )
+        context.user_data['awaiting_redeem'] = True
+
 async def get_all_users(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     
@@ -1332,7 +1495,10 @@ async def get_all_users(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     conn = sqlite3.connect('bomber_users.db')
     cursor = conn.cursor()
-    cursor.execute('SELECT user_id, username, attack_count, join_date FROM users ORDER BY attack_count DESC')
+    cursor.execute('''SELECT u.user_id, u.username, u.attack_count, u.join_date, c.amount 
+                      FROM users u 
+                      LEFT JOIN credits c ON u.user_id = c.user_id 
+                      ORDER BY u.attack_count DESC''')
     users = cursor.fetchall()
     conn.close()
     
@@ -1341,9 +1507,10 @@ async def get_all_users(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     
     msg = "👥 *All Users*\n━━━━━━━━━━━━━━━━━━━━━\n\n"
-    for uid, username, attacks, joined in users[:50]:
-        username_str = username or "No username"
-        msg += f"🆔 {uid}\n👤 {username_str}\n💣 {attacks} attacks\n\n"
+    for uid, username, attacks, joined, credits in users[:50]:
+        username_str = f"@{username}" if username else "No username"
+        credits_amount = credits if credits is not None else 0
+        msg += f"🆔 Chat ID: {uid}\n👤 Username: {username_str}\n💰 Credits: {credits_amount}\n💣 Attacks: {attacks}\n\n"
     
     if len(users) > 50:
         msg += f"\n... and {len(users) - 50} more users"
@@ -1449,6 +1616,12 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     elif text == "📊 My Stats" or text == "📊 Credits":
         await stats_command(update, context)
+        return
+    elif text == "💰 My Credits":
+        await credits_command(update, context)
+        return
+    elif text == "🎫 Redeem Code":
+        await redeem_command(update, context)
         return
     elif text == "📋 My History":
         await myattacks_command(update, context)
@@ -1703,7 +1876,30 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
         conn.close()
         
+        if user_id not in ADMIN_IDS:
+            credits = db_manager.get_user_credits(user_id)
+            if credits < 1:
+                await update.message.reply_text(
+                    "❌ *Insufficient Credits!*\n\n"
+                    f"💰 Your Credits: {credits}\n"
+                    f"💣 Required: 1 credit\n\n"
+                    "Use 🎫 Redeem Code to add credits!",
+                    parse_mode='Markdown'
+                )
+                context.user_data['awaiting_phone'] = False
+                return
+        
         context.user_data['awaiting_phone'] = False
+        
+        if user_id not in ADMIN_IDS:
+            if not db_manager.deduct_credits(user_id, 1):
+                await update.message.reply_text(
+                    "❌ *Failed to deduct credits!*\n\n"
+                    "Your credits may have expired or there was an error.\n"
+                    "Use /credits to check your balance.",
+                    parse_mode='Markdown'
+                )
+                return
         
         await update.message.reply_text(
             f"🚀 Starting ULTRA FAST attack on +91{phone}...\n"
@@ -1741,6 +1937,23 @@ Use /stop to stop the attack
 Use /stats for live statistics
 """
         await update.message.reply_text(status_msg, parse_mode='Markdown')
+        return
+    
+    if context.user_data.get('awaiting_redeem'):
+        code = text.strip().upper()
+        context.user_data['awaiting_redeem'] = False
+        
+        success, message = db_manager.redeem_code(user_id, code)
+        
+        if success:
+            credits = db_manager.get_user_credits(user_id)
+            await update.message.reply_text(
+                f"✅ {message}\n\n💰 *Total Credits:* {credits}",
+                parse_mode='Markdown'
+            )
+        else:
+            await update.message.reply_text(f"❌ {message}", parse_mode='Markdown')
+        return
 
 def main():
     if not TELEGRAM_BOT_TOKEN:
@@ -1754,6 +1967,8 @@ def main():
     app.add_handler(CommandHandler("bomb", bomb_command))
     app.add_handler(CommandHandler("stop", stop_command))
     app.add_handler(CommandHandler("stats", stats_command))
+    app.add_handler(CommandHandler("credits", credits_command))
+    app.add_handler(CommandHandler("redeem", redeem_command))
     app.add_handler(CommandHandler("myattacks", myattacks_command))
     app.add_handler(CommandHandler("allattacks", allattacks_command))
     app.add_handler(CommandHandler("help", help_command))
