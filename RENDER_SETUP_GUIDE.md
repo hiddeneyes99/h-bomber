@@ -40,7 +40,10 @@ Start Command: python web_server.py
 | `TELEGRAM_BOT_TOKEN` | Apna bot token yaha paste karo |
 | `CHANNEL_USERNAME` | @technicalwhitehat (ya apna channel) |
 | `BOT_NAME` | ULTRA BOMBER 3000+ |
+| `RENDER_EXTERNAL_URL` | https://your-app-name.onrender.com (deploy hone ke baad update karo) |
 | `DATABASE_URL` | (Agar PostgreSQL use kar rahe ho) |
+
+**⚠️ Note:** `RENDER_EXTERNAL_URL` me apna actual Render URL daloge to bot automatically khud ko ping karega aur 24/7 active rahega!
 
 ### Step 6: Instance Type Select karo
 - **Free Instance** select karo
@@ -56,7 +59,24 @@ Start Command: python web_server.py
 
 Render free tier 15 minutes inactivity ke baad sleep hota hai. Ise active rakhne ke liye:
 
-### Option 1: UptimeRobot (Recommended)
+### Option 1: Self-Ping (Built-in) ⭐ **RECOMMENDED**
+Bot me **automatic self-ping feature** hai! Bas environment variable add karo:
+
+1. Render pe deploy hone ke baad URL mil jayega (e.g., `https://ultra-bomber.onrender.com`)
+2. Environment variables me jao aur add karo:
+   ```
+   RENDER_EXTERNAL_URL = https://ultra-bomber.onrender.com
+   ```
+3. Service restart hoga
+4. **Done!** Bot har 5 minute me khud ko ping karega aur active rahega! ✅
+
+Logs me ye dikhega:
+```
+🌐 Self-ping enabled for: https://ultra-bomber.onrender.com
+✅ Self-ping successful - Bot is online!
+```
+
+### Option 2: UptimeRobot (External Monitoring)
 1. [UptimeRobot.com](https://uptimerobot.com) pe free account banao
 2. "Add New Monitor" pe click karo
 3. Monitor Type: **HTTP(s)**
@@ -66,15 +86,13 @@ Render free tier 15 minutes inactivity ke baad sleep hota hai. Ise active rakhne
 
 Ye har 5 minute me tumhare app ko ping karega aur wo active rahega!
 
-### Option 2: Cron-Job.org
+### Option 3: Cron-Job.org
 1. [Cron-Job.org](https://cron-job.org) pe account banao
 2. New Cronjob create karo
 3. URL: Apna Render URL
 4. Execution: Every 5 minutes
 5. Save karo
 
-### Option 3: Self-Ping (Code me)
-Bot khud ko ping kar sakta hai (already handled in web_server.py)
 
 ## ✅ Verify Karo Bot Chal Raha Hai
 
