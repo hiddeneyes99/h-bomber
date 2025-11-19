@@ -1883,7 +1883,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     "❌ *Insufficient Credits!*\n\n"
                     f"💰 Your Credits: {credits}\n"
                     f"💣 Required: 1 credit\n\n"
-                    "Use 🎫 Redeem Code to add credits!",
+                    f"Use 🎫 Redeem Code to add credits!\n\n"
+                    f"📢 Contact: {CHANNEL_USERNAME}",
                     parse_mode='Markdown'
                 )
                 context.user_data['awaiting_phone'] = False
