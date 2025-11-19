@@ -9,7 +9,7 @@ import json
 from telegram import Update, ChatMember, ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes, CallbackQueryHandler
 import sqlite3
-from datetime import datetime
+from datetime import datetime, timedelta
 from dotenv import load_dotenv
 
 # Load environment variables
@@ -985,6 +985,48 @@ class DatabaseManager:
                 status TEXT
             )
         ''')
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS protected_numbers (
+                phone TEXT PRIMARY KEY,
+                protected_by INTEGER,
+                timestamp TEXT
+            )
+        ''')
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS banned_users (
+                user_id INTEGER PRIMARY KEY,
+                banned_by INTEGER,
+                timestamp TEXT,
+                reason TEXT
+            )
+        ''')
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS allowed_users (
+                user_id INTEGER PRIMARY KEY,
+                allowed_by INTEGER,
+                timestamp TEXT
+            )
+        ''')
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS credits (
+                user_id INTEGER PRIMARY KEY,
+                amount INTEGER DEFAULT 0,
+                expiry_date TEXT,
+                given_by INTEGER,
+                timestamp TEXT
+            )
+        ''')
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS redeem_codes (
+                code TEXT PRIMARY KEY,
+                amount INTEGER,
+                days INTEGER,
+                created_by INTEGER,
+                created_at TEXT,
+                used_by INTEGER,
+                used_at TEXT
+            )
+        ''')
         conn.commit()
         conn.close()
     
@@ -1053,10 +1095,14 @@ def get_admin_keyboard():
     """Admin menu keyboard with all controls"""
     keyboard = [
         [KeyboardButton("💣 Start Attack"), KeyboardButton("🛑 Stop Attack")],
-        [KeyboardButton("📊 My Stats"), KeyboardButton("📋 My History")],
-        [KeyboardButton("👥 All Users"), KeyboardButton("📜 All Attacks")],
-        [KeyboardButton("🚷 Ban User"), KeyboardButton("✅ Unban User")],
-        [KeyboardButton("📢 Broadcast"), KeyboardButton("ℹ️ About")]
+        [KeyboardButton("➕ Protect Number"), KeyboardButton("➖ Unprotect Number")],
+        [KeyboardButton("🚷 Ban User"), KeyboardButton("🚳 Unban User")],
+        [KeyboardButton("➕ Allow User"), KeyboardButton("➖ Disallow User")],
+        [KeyboardButton("📜 Protected List"), KeyboardButton("📵 Banned List")],
+        [KeyboardButton("🔒 Allowed List"), KeyboardButton("👥 Users")],
+        [KeyboardButton("➕ Give Credit"), KeyboardButton("🔁 Gen Redeem Code")],
+        [KeyboardButton("📜 Redeem Codes"), KeyboardButton("📊 Credits")],
+        [KeyboardButton("📣 Broadcast"), KeyboardButton("⬅️ Back")]
     ]
     return ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
 
@@ -1304,6 +1350,88 @@ async def get_all_users(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     await update.message.reply_text(msg, parse_mode='Markdown')
 
+async def show_protected_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    conn = sqlite3.connect('bomber_users.db')
+    cursor = conn.cursor()
+    cursor.execute('SELECT phone, protected_by, timestamp FROM protected_numbers ORDER BY timestamp DESC')
+    numbers = cursor.fetchall()
+    conn.close()
+    
+    if not numbers:
+        await update.message.reply_text("📜 No protected numbers!", parse_mode='Markdown')
+        return
+    
+    msg = "🔒 *Protected Numbers*\n━━━━━━━━━━━━━━━━━━━━━\n\n"
+    for phone, by_admin, time in numbers[:30]:
+        msg += f"📱 +91{phone}\n👤 By: {by_admin}\n⏰ {time}\n\n"
+    
+    if len(numbers) > 30:
+        msg += f"\n... and {len(numbers) - 30} more"
+    
+    await update.message.reply_text(msg, parse_mode='Markdown')
+
+async def show_banned_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    conn = sqlite3.connect('bomber_users.db')
+    cursor = conn.cursor()
+    cursor.execute('SELECT user_id, banned_by, timestamp, reason FROM banned_users ORDER BY timestamp DESC')
+    banned = cursor.fetchall()
+    conn.close()
+    
+    if not banned:
+        await update.message.reply_text("📵 No banned users!", parse_mode='Markdown')
+        return
+    
+    msg = "🚫 *Banned Users*\n━━━━━━━━━━━━━━━━━━━━━\n\n"
+    for uid, by_admin, time, reason in banned[:30]:
+        reason_str = reason or "No reason"
+        msg += f"🆔 {uid}\n👤 By: {by_admin}\n⏰ {time}\n📝 {reason_str}\n\n"
+    
+    if len(banned) > 30:
+        msg += f"\n... and {len(banned) - 30} more"
+    
+    await update.message.reply_text(msg, parse_mode='Markdown')
+
+async def show_allowed_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    conn = sqlite3.connect('bomber_users.db')
+    cursor = conn.cursor()
+    cursor.execute('SELECT user_id, allowed_by, timestamp FROM allowed_users ORDER BY timestamp DESC')
+    allowed = cursor.fetchall()
+    conn.close()
+    
+    if not allowed:
+        await update.message.reply_text("🔒 No allowed users!", parse_mode='Markdown')
+        return
+    
+    msg = "✅ *Allowed Users*\n━━━━━━━━━━━━━━━━━━━━━\n\n"
+    for uid, by_admin, time in allowed[:30]:
+        msg += f"🆔 {uid}\n👤 By: {by_admin}\n⏰ {time}\n\n"
+    
+    if len(allowed) > 30:
+        msg += f"\n... and {len(allowed) - 30} more"
+    
+    await update.message.reply_text(msg, parse_mode='Markdown')
+
+async def show_redeem_codes(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    conn = sqlite3.connect('bomber_users.db')
+    cursor = conn.cursor()
+    cursor.execute('SELECT code, amount, days, created_by, created_at, used_by, used_at FROM redeem_codes ORDER BY created_at DESC')
+    codes = cursor.fetchall()
+    conn.close()
+    
+    if not codes:
+        await update.message.reply_text("📜 No redeem codes!", parse_mode='Markdown')
+        return
+    
+    msg = "🎟️ *Redeem Codes*\n━━━━━━━━━━━━━━━━━━━━━\n\n"
+    for code, amount, days, by_admin, created, used_by, used_at in codes[:20]:
+        status = f"✅ Used by {used_by}" if used_by else "⏳ Available"
+        msg += f"🎫 `{code}`\n💰 {amount} credits\n⏱️ {days} days\n{status}\n\n"
+    
+    if len(codes) > 20:
+        msg += f"\n... and {len(codes) - 20} more"
+    
+    await update.message.reply_text(msg, parse_mode='Markdown')
+
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     text = update.message.text
@@ -1319,7 +1447,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif text == "🛑 Stop Attack":
         await stop_command(update, context)
         return
-    elif text == "📊 My Stats":
+    elif text == "📊 My Stats" or text == "📊 Credits":
         await stats_command(update, context)
         return
     elif text == "📋 My History":
@@ -1331,11 +1459,212 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif text == "ℹ️ About":
         await about_command(update, context)
         return
-    elif text == "👥 All Users" and user_id in ADMIN_IDS:
-        await get_all_users(update, context)
+    elif text == "⬅️ Back":
+        await start_command(update, context)
         return
-    elif text == "📜 All Attacks" and user_id in ADMIN_IDS:
-        await allattacks_command(update, context)
+    
+    # Admin-only buttons
+    if user_id in ADMIN_IDS:
+        if text == "➕ Protect Number":
+            await update.message.reply_text("📲 Send the phone number to protect (10 digits):")
+            context.user_data['admin_action'] = 'protect_number'
+            return
+        elif text == "➖ Unprotect Number":
+            await update.message.reply_text("📲 Send the phone number to unprotect (10 digits):")
+            context.user_data['admin_action'] = 'unprotect_number'
+            return
+        elif text == "🚷 Ban User":
+            await update.message.reply_text("🛑 Send the Telegram user ID to ban:")
+            context.user_data['admin_action'] = 'ban_user'
+            return
+        elif text == "🚳 Unban User":
+            await update.message.reply_text("✅ Send the Telegram user ID to unban:")
+            context.user_data['admin_action'] = 'unban_user'
+            return
+        elif text == "➕ Allow User":
+            await update.message.reply_text("➕ Send the Telegram user ID to allow:")
+            context.user_data['admin_action'] = 'allow_user'
+            return
+        elif text == "➖ Disallow User":
+            await update.message.reply_text("➖ Send the Telegram user ID to disallow:")
+            context.user_data['admin_action'] = 'disallow_user'
+            return
+        elif text == "➕ Give Credit":
+            await update.message.reply_text(
+                "➕ Give Credits\n\n"
+                "Format: <user_id> <amount> <days>\n"
+                "Example: 123456789 10 30\n\n"
+                "• days=0 means credits never expire\n"
+                "• days>0 means credits expire after that many days"
+            )
+            context.user_data['admin_action'] = 'give_credit'
+            return
+        elif text == "🔁 Gen Redeem Code":
+            await update.message.reply_text(
+                "🔁 Generate Redeem Code\n\n"
+                "Format: <amount> <days>\n"
+                "Example: 5 7\n\n"
+                "This creates a code that gives:\n"
+                "• Amount of credits\n"
+                "• Valid for number of days\n"
+                "• days=0 means never expire"
+            )
+            context.user_data['admin_action'] = 'gen_redeem'
+            return
+        elif text == "📜 Protected List":
+            await show_protected_list(update, context)
+            return
+        elif text == "📵 Banned List":
+            await show_banned_list(update, context)
+            return
+        elif text == "🔒 Allowed List":
+            await show_allowed_list(update, context)
+            return
+        elif text == "👥 Users":
+            await get_all_users(update, context)
+            return
+        elif text == "📜 Redeem Codes":
+            await show_redeem_codes(update, context)
+            return
+        elif text == "📣 Broadcast":
+            await update.message.reply_text("📣 Send the message to broadcast to all users:")
+            context.user_data['admin_action'] = 'broadcast'
+            return
+    
+    # Process admin actions
+    admin_action = context.user_data.get('admin_action')
+    if admin_action and user_id in ADMIN_IDS:
+        conn = sqlite3.connect('bomber_users.db')
+        cursor = conn.cursor()
+        
+        if admin_action == 'protect_number':
+            phone = text.strip()
+            if not phone.isdigit() or len(phone) != 10:
+                await update.message.reply_text("❌ Invalid phone number! Please send 10 digits.")
+            else:
+                cursor.execute('INSERT OR REPLACE INTO protected_numbers VALUES (?, ?, ?)',
+                              (phone, user_id, datetime.now().isoformat()))
+                conn.commit()
+                await update.message.reply_text(f"✅ Protected +91{phone}!")
+            context.user_data['admin_action'] = None
+        
+        elif admin_action == 'unprotect_number':
+            phone = text.strip()
+            if not phone.isdigit() or len(phone) != 10:
+                await update.message.reply_text("❌ Invalid phone number! Please send 10 digits.")
+            else:
+                cursor.execute('DELETE FROM protected_numbers WHERE phone = ?', (phone,))
+                conn.commit()
+                if cursor.rowcount > 0:
+                    await update.message.reply_text(f"✅ Unprotected +91{phone}!")
+                else:
+                    await update.message.reply_text(f"⚠️ +91{phone} was not in protected list!")
+            context.user_data['admin_action'] = None
+        
+        elif admin_action == 'ban_user':
+            try:
+                target_id = int(text.strip())
+                cursor.execute('INSERT OR REPLACE INTO banned_users VALUES (?, ?, ?, ?)',
+                              (target_id, user_id, datetime.now().isoformat(), 'Banned by admin'))
+                conn.commit()
+                await update.message.reply_text(f"🚫 Banned user {target_id}!")
+            except ValueError:
+                await update.message.reply_text("❌ Invalid user ID! Please send numbers only.")
+            context.user_data['admin_action'] = None
+        
+        elif admin_action == 'unban_user':
+            try:
+                target_id = int(text.strip())
+                cursor.execute('DELETE FROM banned_users WHERE user_id = ?', (target_id,))
+                conn.commit()
+                if cursor.rowcount > 0:
+                    await update.message.reply_text(f"✅ Unbanned user {target_id}!")
+                else:
+                    await update.message.reply_text(f"⚠️ User {target_id} was not banned!")
+            except ValueError:
+                await update.message.reply_text("❌ Invalid user ID! Please send numbers only.")
+            context.user_data['admin_action'] = None
+        
+        elif admin_action == 'allow_user':
+            try:
+                target_id = int(text.strip())
+                cursor.execute('INSERT OR REPLACE INTO allowed_users VALUES (?, ?, ?)',
+                              (target_id, user_id, datetime.now().isoformat()))
+                conn.commit()
+                await update.message.reply_text(f"✅ Allowed user {target_id}!")
+            except ValueError:
+                await update.message.reply_text("❌ Invalid user ID! Please send numbers only.")
+            context.user_data['admin_action'] = None
+        
+        elif admin_action == 'disallow_user':
+            try:
+                target_id = int(text.strip())
+                cursor.execute('DELETE FROM allowed_users WHERE user_id = ?', (target_id,))
+                conn.commit()
+                if cursor.rowcount > 0:
+                    await update.message.reply_text(f"✅ Disallowed user {target_id}!")
+                else:
+                    await update.message.reply_text(f"⚠️ User {target_id} was not in allowed list!")
+            except ValueError:
+                await update.message.reply_text("❌ Invalid user ID! Please send numbers only.")
+            context.user_data['admin_action'] = None
+        
+        elif admin_action == 'give_credit':
+            try:
+                parts = text.strip().split()
+                if len(parts) != 3:
+                    await update.message.reply_text("❌ Invalid format! Use: <user_id> <amount> <days>")
+                else:
+                    target_id, amount, days = int(parts[0]), int(parts[1]), int(parts[2])
+                    expiry = None if days == 0 else (datetime.now() + timedelta(days=days)).isoformat()
+                    cursor.execute('INSERT OR REPLACE INTO credits VALUES (?, ?, ?, ?, ?)',
+                                  (target_id, amount, expiry, user_id, datetime.now().isoformat()))
+                    conn.commit()
+                    await update.message.reply_text(f"✅ Gave {amount} credits to user {target_id}!")
+            except (ValueError, IndexError):
+                await update.message.reply_text("❌ Invalid format! Use: <user_id> <amount> <days>")
+            context.user_data['admin_action'] = None
+        
+        elif admin_action == 'gen_redeem':
+            try:
+                parts = text.strip().split()
+                if len(parts) != 2:
+                    await update.message.reply_text("❌ Invalid format! Use: <amount> <days>")
+                else:
+                    amount, days = int(parts[0]), int(parts[1])
+                    code = ''.join(random.choices('ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789', k=10))
+                    cursor.execute('INSERT INTO redeem_codes VALUES (?, ?, ?, ?, ?, ?, ?)',
+                                  (code, amount, days, user_id, datetime.now().isoformat(), None, None))
+                    conn.commit()
+                    await update.message.reply_text(
+                        f"✅ *Redeem Code Generated!*\n\n"
+                        f"🎫 Code: `{code}`\n"
+                        f"💰 Amount: {amount} credits\n"
+                        f"⏱️ Valid: {days} days\n\n"
+                        f"Share this code with users!",
+                        parse_mode='Markdown'
+                    )
+            except (ValueError, IndexError):
+                await update.message.reply_text("❌ Invalid format! Use: <amount> <days>")
+            context.user_data['admin_action'] = None
+        
+        elif admin_action == 'broadcast':
+            cursor.execute('SELECT user_id FROM users')
+            all_users = cursor.fetchall()
+            success_count = 0
+            
+            for (uid,) in all_users:
+                try:
+                    await context.bot.send_message(chat_id=uid, text=f"📢 *Broadcast:*\n\n{text}", parse_mode='Markdown')
+                    success_count += 1
+                    await asyncio.sleep(0.05)
+                except Exception:
+                    continue
+            
+            await update.message.reply_text(f"✅ Broadcast sent to {success_count}/{len(all_users)} users!")
+            context.user_data['admin_action'] = None
+        
+        conn.close()
         return
     
     if context.user_data.get('awaiting_phone'):
@@ -1350,6 +1679,29 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 parse_mode='Markdown'
             )
             return
+        
+        conn = sqlite3.connect('bomber_users.db')
+        cursor = conn.cursor()
+        cursor.execute('SELECT 1 FROM protected_numbers WHERE phone = ?', (phone,))
+        if cursor.fetchone():
+            conn.close()
+            await update.message.reply_text(
+                "🛡️ This number is protected and cannot be attacked!",
+                parse_mode='Markdown'
+            )
+            context.user_data['awaiting_phone'] = False
+            return
+        
+        cursor.execute('SELECT 1 FROM banned_users WHERE user_id = ?', (user_id,))
+        if cursor.fetchone() and user_id not in ADMIN_IDS:
+            conn.close()
+            await update.message.reply_text(
+                "🚫 You are banned from using this bot!",
+                parse_mode='Markdown'
+            )
+            context.user_data['awaiting_phone'] = False
+            return
+        conn.close()
         
         context.user_data['awaiting_phone'] = False
         
