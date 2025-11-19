@@ -1194,8 +1194,15 @@ async def allattacks_command(update: Update, context: ContextTypes.DEFAULT_TYPE)
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     
+    print(f"[DEBUG] Message received from user {user_id}")
+    print(f"[DEBUG] Message text: {update.message.text}")
+    print(f"[DEBUG] awaiting_phone status: {context.user_data.get('awaiting_phone', False)}")
+    
     if context.user_data.get('awaiting_phone'):
         phone = update.message.text.strip()
+        
+        print(f"[DEBUG] Phone number entered: {phone}")
+        print(f"[DEBUG] Is digit: {phone.isdigit()}, Length: {len(phone)}")
         
         if not phone.isdigit() or len(phone) != 10:
             await update.message.reply_text(
