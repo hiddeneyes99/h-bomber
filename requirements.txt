@@ -5,3 +5,11 @@ python-dotenv
 psycopg2-binary
 flask
 requests
+aiohttp
+colorama
+flask
+psycopg2-binary
+python-dotenv
+python-telegram-bot==20.7
+requests
+telegram

