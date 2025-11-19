@@ -3,3 +3,9 @@ colorama
 python-telegram-bot==20.7
 python-dotenv
 psycopg2-binary
+aiohttp
+colorama
+psycopg2-binary
+python-dotenv
+python-telegram-bot==20.7
+telegram
