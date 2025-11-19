@@ -1506,7 +1506,7 @@ async def get_all_users(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("👥 No users found!", parse_mode='Markdown')
         return
     
-    msg = "👥 *All Users*\n━━━━━━━━━━━━━━━━━━━━━\n\n"
+    msg = "👥 All Users\n━━━━━━━━━━━━━━━━━━━━━\n\n"
     for uid, username, attacks, joined, credits in users[:50]:
         username_str = f"@{username}" if username else "No username"
         credits_amount = credits if credits is not None else 0
@@ -1515,7 +1515,7 @@ async def get_all_users(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if len(users) > 50:
         msg += f"\n... and {len(users) - 50} more users"
     
-    await update.message.reply_text(msg, parse_mode='Markdown')
+    await update.message.reply_text(msg)
 
 async def show_protected_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
     conn = sqlite3.connect('bomber_users.db')
