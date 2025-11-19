@@ -1382,6 +1382,241 @@ class DatabaseManager:
             conn.close()
             return False, f"Error redeeming code: {str(e)}"
 
+    def get_all_users_with_credits(self):
+        """Get all users with their credit information"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        cursor.execute('''SELECT u.user_id, u.username, u.attack_count, u.join_date, c.amount 
+                          FROM users u 
+                          LEFT JOIN credits c ON u.user_id = c.user_id 
+                          ORDER BY u.attack_count DESC''')
+        users = cursor.fetchall()
+        conn.close()
+        return users
+    
+    def get_protected_numbers(self):
+        """Get all protected numbers"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        cursor.execute('SELECT phone, protected_by, timestamp FROM protected_numbers ORDER BY timestamp DESC')
+        numbers = cursor.fetchall()
+        conn.close()
+        return numbers
+    
+    def get_banned_users(self):
+        """Get all banned users"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        cursor.execute('SELECT user_id, banned_by, timestamp, reason FROM banned_users ORDER BY timestamp DESC')
+        banned = cursor.fetchall()
+        conn.close()
+        return banned
+    
+    def get_allowed_users(self):
+        """Get all allowed users"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        cursor.execute('SELECT user_id, allowed_by, timestamp FROM allowed_users ORDER BY timestamp DESC')
+        allowed = cursor.fetchall()
+        conn.close()
+        return allowed
+    
+    def get_all_redeem_codes(self):
+        """Get all redeem codes"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        cursor.execute('SELECT code, amount, days, created_by, created_at, used_by, used_at FROM redeem_codes ORDER BY created_at DESC')
+        codes = cursor.fetchall()
+        conn.close()
+        return codes
+    
+    def is_number_protected(self, phone):
+        """Check if a phone number is protected"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        
+        if self.use_postgres:
+            cursor.execute('SELECT 1 FROM protected_numbers WHERE phone = %s', (phone,))
+        else:
+            cursor.execute('SELECT 1 FROM protected_numbers WHERE phone = ?', (phone,))
+        
+        result = cursor.fetchone()
+        conn.close()
+        return result is not None
+    
+    def is_user_banned(self, user_id):
+        """Check if a user is banned"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        
+        if self.use_postgres:
+            cursor.execute('SELECT 1 FROM banned_users WHERE user_id = %s', (user_id,))
+        else:
+            cursor.execute('SELECT 1 FROM banned_users WHERE user_id = ?', (user_id,))
+        
+        result = cursor.fetchone()
+        conn.close()
+        return result is not None
+    
+    def protect_number(self, phone, admin_id):
+        """Add a number to protected list"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        
+        if self.use_postgres:
+            cursor.execute(
+                'INSERT INTO protected_numbers (phone, protected_by, timestamp) VALUES (%s, %s, %s) ON CONFLICT (phone) DO UPDATE SET protected_by = %s, timestamp = %s',
+                (phone, admin_id, datetime.now(), admin_id, datetime.now())
+            )
+        else:
+            cursor.execute(
+                'INSERT OR REPLACE INTO protected_numbers VALUES (?, ?, ?)',
+                (phone, admin_id, datetime.now().isoformat())
+            )
+        
+        conn.commit()
+        conn.close()
+    
+    def unprotect_number(self, phone):
+        """Remove a number from protected list"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        
+        if self.use_postgres:
+            cursor.execute('DELETE FROM protected_numbers WHERE phone = %s', (phone,))
+        else:
+            cursor.execute('DELETE FROM protected_numbers WHERE phone = ?', (phone,))
+        
+        success = cursor.rowcount > 0
+        conn.commit()
+        conn.close()
+        return success
+    
+    def ban_user(self, user_id, admin_id, reason="Banned by admin"):
+        """Ban a user"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        
+        if self.use_postgres:
+            cursor.execute(
+                'INSERT INTO banned_users (user_id, banned_by, timestamp, reason) VALUES (%s, %s, %s, %s) ON CONFLICT (user_id) DO UPDATE SET banned_by = %s, timestamp = %s, reason = %s',
+                (user_id, admin_id, datetime.now(), reason, admin_id, datetime.now(), reason)
+            )
+        else:
+            cursor.execute(
+                'INSERT OR REPLACE INTO banned_users VALUES (?, ?, ?, ?)',
+                (user_id, admin_id, datetime.now().isoformat(), reason)
+            )
+        
+        conn.commit()
+        conn.close()
+    
+    def unban_user(self, user_id):
+        """Unban a user"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        
+        if self.use_postgres:
+            cursor.execute('DELETE FROM banned_users WHERE user_id = %s', (user_id,))
+        else:
+            cursor.execute('DELETE FROM banned_users WHERE user_id = ?', (user_id,))
+        
+        success = cursor.rowcount > 0
+        conn.commit()
+        conn.close()
+        return success
+    
+    def allow_user(self, user_id, admin_id):
+        """Add user to allowed list"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        
+        if self.use_postgres:
+            cursor.execute(
+                'INSERT INTO allowed_users (user_id, allowed_by, timestamp) VALUES (%s, %s, %s) ON CONFLICT (user_id) DO UPDATE SET allowed_by = %s, timestamp = %s',
+                (user_id, admin_id, datetime.now(), admin_id, datetime.now())
+            )
+        else:
+            cursor.execute(
+                'INSERT OR REPLACE INTO allowed_users VALUES (?, ?, ?)',
+                (user_id, admin_id, datetime.now().isoformat())
+            )
+        
+        conn.commit()
+        conn.close()
+    
+    def disallow_user(self, user_id):
+        """Remove user from allowed list"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        
+        if self.use_postgres:
+            cursor.execute('DELETE FROM allowed_users WHERE user_id = %s', (user_id,))
+        else:
+            cursor.execute('DELETE FROM allowed_users WHERE user_id = ?', (user_id,))
+        
+        success = cursor.rowcount > 0
+        conn.commit()
+        conn.close()
+        return success
+    
+    def give_credits(self, user_id, amount, days, admin_id):
+        """Give credits to a user"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        
+        if self.use_postgres:
+            expiry = None if days == 0 else (datetime.now() + timedelta(days=days))
+            cursor.execute(
+                'INSERT INTO credits (user_id, amount, expiry_date, given_by, timestamp) VALUES (%s, %s, %s, %s, %s) ON CONFLICT (user_id) DO UPDATE SET amount = amount + %s, expiry_date = %s, given_by = %s, timestamp = %s',
+                (user_id, amount, expiry, admin_id, datetime.now(), amount, expiry, admin_id, datetime.now())
+            )
+        else:
+            expiry = None if days == 0 else (datetime.now() + timedelta(days=days)).isoformat()
+            cursor.execute('SELECT amount FROM credits WHERE user_id = ?', (user_id,))
+            result = cursor.fetchone()
+            if result:
+                cursor.execute(
+                    'UPDATE credits SET amount = amount + ?, expiry_date = ?, given_by = ?, timestamp = ? WHERE user_id = ?',
+                    (amount, expiry, admin_id, datetime.now().isoformat(), user_id)
+                )
+            else:
+                cursor.execute(
+                    'INSERT INTO credits VALUES (?, ?, ?, ?, ?)',
+                    (user_id, amount, expiry, admin_id, datetime.now().isoformat())
+                )
+        
+        conn.commit()
+        conn.close()
+    
+    def create_redeem_code(self, code, amount, days, admin_id):
+        """Create a new redeem code"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        
+        if self.use_postgres:
+            cursor.execute(
+                'INSERT INTO redeem_codes (code, amount, days, created_by, created_at, used_by, used_at) VALUES (%s, %s, %s, %s, %s, NULL, NULL)',
+                (code, amount, days, admin_id, datetime.now())
+            )
+        else:
+            cursor.execute(
+                'INSERT INTO redeem_codes VALUES (?, ?, ?, ?, ?, NULL, NULL)',
+                (code, amount, days, admin_id, datetime.now().isoformat())
+            )
+        
+        conn.commit()
+        conn.close()
+    
+    def get_all_user_ids(self):
+        """Get all user IDs for broadcasting"""
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        cursor.execute('SELECT user_id FROM users')
+        users = cursor.fetchall()
+        conn.close()
+        return users
+
 db_manager = DatabaseManager()
 active_attackers = {}
 
@@ -1685,14 +1920,7 @@ async def get_all_users(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("❌ Admin only!", parse_mode='Markdown')
         return
     
-    conn = sqlite3.connect('bomber_users.db')
-    cursor = conn.cursor()
-    cursor.execute('''SELECT u.user_id, u.username, u.attack_count, u.join_date, c.amount 
-                      FROM users u 
-                      LEFT JOIN credits c ON u.user_id = c.user_id 
-                      ORDER BY u.attack_count DESC''')
-    users = cursor.fetchall()
-    conn.close()
+    users = db_manager.get_all_users_with_credits()
     
     if not users:
         await update.message.reply_text("👥 No users found!", parse_mode='Markdown')
@@ -1710,11 +1938,7 @@ async def get_all_users(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(msg)
 
 async def show_protected_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    conn = sqlite3.connect('bomber_users.db')
-    cursor = conn.cursor()
-    cursor.execute('SELECT phone, protected_by, timestamp FROM protected_numbers ORDER BY timestamp DESC')
-    numbers = cursor.fetchall()
-    conn.close()
+    numbers = db_manager.get_protected_numbers()
     
     if not numbers:
         await update.message.reply_text("📜 No protected numbers!", parse_mode='Markdown')
@@ -1730,11 +1954,7 @@ async def show_protected_list(update: Update, context: ContextTypes.DEFAULT_TYPE
     await update.message.reply_text(msg, parse_mode='Markdown')
 
 async def show_banned_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    conn = sqlite3.connect('bomber_users.db')
-    cursor = conn.cursor()
-    cursor.execute('SELECT user_id, banned_by, timestamp, reason FROM banned_users ORDER BY timestamp DESC')
-    banned = cursor.fetchall()
-    conn.close()
+    banned = db_manager.get_banned_users()
     
     if not banned:
         await update.message.reply_text("📵 No banned users!", parse_mode='Markdown')
@@ -1751,11 +1971,7 @@ async def show_banned_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(msg, parse_mode='Markdown')
 
 async def show_allowed_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    conn = sqlite3.connect('bomber_users.db')
-    cursor = conn.cursor()
-    cursor.execute('SELECT user_id, allowed_by, timestamp FROM allowed_users ORDER BY timestamp DESC')
-    allowed = cursor.fetchall()
-    conn.close()
+    allowed = db_manager.get_allowed_users()
     
     if not allowed:
         await update.message.reply_text("🔒 No allowed users!", parse_mode='Markdown')
@@ -1771,11 +1987,7 @@ async def show_allowed_list(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(msg, parse_mode='Markdown')
 
 async def show_redeem_codes(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    conn = sqlite3.connect('bomber_users.db')
-    cursor = conn.cursor()
-    cursor.execute('SELECT code, amount, days, created_by, created_at, used_by, used_at FROM redeem_codes ORDER BY created_at DESC')
-    codes = cursor.fetchall()
-    conn.close()
+    codes = db_manager.get_all_redeem_codes()
     
     if not codes:
         await update.message.reply_text("📜 No redeem codes!", parse_mode='Markdown')
@@ -1899,17 +2111,12 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Process admin actions
     admin_action = context.user_data.get('admin_action')
     if admin_action and user_id in ADMIN_IDS:
-        conn = sqlite3.connect('bomber_users.db')
-        cursor = conn.cursor()
-        
         if admin_action == 'protect_number':
             phone = text.strip()
             if not phone.isdigit() or len(phone) != 10:
                 await update.message.reply_text("❌ Invalid phone number! Please send 10 digits.")
             else:
-                cursor.execute('INSERT OR REPLACE INTO protected_numbers VALUES (?, ?, ?)',
-                              (phone, user_id, datetime.now().isoformat()))
-                conn.commit()
+                db_manager.protect_number(phone, user_id)
                 await update.message.reply_text(f"✅ Protected +91{phone}!")
             context.user_data['admin_action'] = None
         
@@ -1918,9 +2125,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if not phone.isdigit() or len(phone) != 10:
                 await update.message.reply_text("❌ Invalid phone number! Please send 10 digits.")
             else:
-                cursor.execute('DELETE FROM protected_numbers WHERE phone = ?', (phone,))
-                conn.commit()
-                if cursor.rowcount > 0:
+                success = db_manager.unprotect_number(phone)
+                if success:
                     await update.message.reply_text(f"✅ Unprotected +91{phone}!")
                 else:
                     await update.message.reply_text(f"⚠️ +91{phone} was not in protected list!")
@@ -1929,9 +2135,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         elif admin_action == 'ban_user':
             try:
                 target_id = int(text.strip())
-                cursor.execute('INSERT OR REPLACE INTO banned_users VALUES (?, ?, ?, ?)',
-                              (target_id, user_id, datetime.now().isoformat(), 'Banned by admin'))
-                conn.commit()
+                db_manager.ban_user(target_id, user_id)
                 await update.message.reply_text(f"🚫 Banned user {target_id}!")
             except ValueError:
                 await update.message.reply_text("❌ Invalid user ID! Please send numbers only.")
@@ -1940,9 +2144,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         elif admin_action == 'unban_user':
             try:
                 target_id = int(text.strip())
-                cursor.execute('DELETE FROM banned_users WHERE user_id = ?', (target_id,))
-                conn.commit()
-                if cursor.rowcount > 0:
+                success = db_manager.unban_user(target_id)
+                if success:
                     await update.message.reply_text(f"✅ Unbanned user {target_id}!")
                 else:
                     await update.message.reply_text(f"⚠️ User {target_id} was not banned!")
@@ -1953,9 +2156,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         elif admin_action == 'allow_user':
             try:
                 target_id = int(text.strip())
-                cursor.execute('INSERT OR REPLACE INTO allowed_users VALUES (?, ?, ?)',
-                              (target_id, user_id, datetime.now().isoformat()))
-                conn.commit()
+                db_manager.allow_user(target_id, user_id)
                 await update.message.reply_text(f"✅ Allowed user {target_id}!")
             except ValueError:
                 await update.message.reply_text("❌ Invalid user ID! Please send numbers only.")
@@ -1964,9 +2165,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         elif admin_action == 'disallow_user':
             try:
                 target_id = int(text.strip())
-                cursor.execute('DELETE FROM allowed_users WHERE user_id = ?', (target_id,))
-                conn.commit()
-                if cursor.rowcount > 0:
+                success = db_manager.disallow_user(target_id)
+                if success:
                     await update.message.reply_text(f"✅ Disallowed user {target_id}!")
                 else:
                     await update.message.reply_text(f"⚠️ User {target_id} was not in allowed list!")
@@ -1981,10 +2181,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     await update.message.reply_text("❌ Invalid format! Use: <user_id> <amount> <days>")
                 else:
                     target_id, amount, days = int(parts[0]), int(parts[1]), int(parts[2])
-                    expiry = None if days == 0 else (datetime.now() + timedelta(days=days)).isoformat()
-                    cursor.execute('INSERT OR REPLACE INTO credits VALUES (?, ?, ?, ?, ?)',
-                                  (target_id, amount, expiry, user_id, datetime.now().isoformat()))
-                    conn.commit()
+                    db_manager.give_credits(target_id, amount, days, user_id)
                     await update.message.reply_text(f"✅ Gave {amount} credits to user {target_id}!")
             except (ValueError, IndexError):
                 await update.message.reply_text("❌ Invalid format! Use: <user_id> <amount> <days>")
@@ -1998,9 +2195,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 else:
                     amount, days = int(parts[0]), int(parts[1])
                     code = ''.join(random.choices('ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789', k=10))
-                    cursor.execute('INSERT INTO redeem_codes VALUES (?, ?, ?, ?, ?, ?, ?)',
-                                  (code, amount, days, user_id, datetime.now().isoformat(), None, None))
-                    conn.commit()
+                    db_manager.create_redeem_code(code, amount, days, user_id)
                     await update.message.reply_text(
                         f"✅ *Redeem Code Generated!*\n\n"
                         f"🎫 Code: `{code}`\n"
@@ -2014,8 +2209,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             context.user_data['admin_action'] = None
         
         elif admin_action == 'broadcast':
-            cursor.execute('SELECT user_id FROM users')
-            all_users = cursor.fetchall()
+            all_users = db_manager.get_all_user_ids()
             success_count = 0
             
             for (uid,) in all_users:
@@ -2029,7 +2223,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_text(f"✅ Broadcast sent to {success_count}/{len(all_users)} users!")
             context.user_data['admin_action'] = None
         
-        conn.close()
         return
     
     if context.user_data.get('awaiting_phone'):
@@ -2045,11 +2238,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             )
             return
         
-        conn = sqlite3.connect('bomber_users.db')
-        cursor = conn.cursor()
-        cursor.execute('SELECT 1 FROM protected_numbers WHERE phone = ?', (phone,))
-        if cursor.fetchone():
-            conn.close()
+        if db_manager.is_number_protected(phone):
             await update.message.reply_text(
                 "🛡️ This number is protected and cannot be attacked!",
                 parse_mode='Markdown'
@@ -2057,16 +2246,13 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             context.user_data['awaiting_phone'] = False
             return
         
-        cursor.execute('SELECT 1 FROM banned_users WHERE user_id = ?', (user_id,))
-        if cursor.fetchone() and user_id not in ADMIN_IDS:
-            conn.close()
+        if db_manager.is_user_banned(user_id) and user_id not in ADMIN_IDS:
             await update.message.reply_text(
                 "🚫 You are banned from using this bot!",
                 parse_mode='Markdown'
             )
             context.user_data['awaiting_phone'] = False
             return
-        conn.close()
         
         if user_id not in ADMIN_IDS:
             credits = db_manager.get_user_credits(user_id)
