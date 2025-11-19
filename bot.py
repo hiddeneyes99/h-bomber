@@ -9,6 +9,9 @@ import json
 from telegram import Update, ChatMember, ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, InlineKeyboardButton
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes, CallbackQueryHandler
 import sqlite3
+import psycopg2
+from psycopg2.extras import RealDictCursor
+from urllib.parse import urlparse
 from datetime import datetime, timedelta
 from dotenv import load_dotenv
 
@@ -961,120 +964,244 @@ class UltraPhoneDestroyer:
 # Database Manager
 class DatabaseManager:
     def __init__(self):
-        self.db_file = 'bomber_users.db'
+        # Check if DATABASE_URL exists (for PostgreSQL on Render/production)
+        self.database_url = os.getenv('DATABASE_URL')
+        
+        if self.database_url:
+            # Use PostgreSQL
+            self.use_postgres = True
+            print("🗄️ Using PostgreSQL database")
+        else:
+            # Use SQLite (for local development)
+            self.use_postgres = False
+            self.db_file = 'bomber_users.db'
+            print("🗄️ Using SQLite database")
+        
         self.init_database()
     
+    def get_connection(self):
+        """Get database connection based on environment"""
+        if self.use_postgres:
+            return psycopg2.connect(self.database_url)
+        else:
+            return sqlite3.connect(self.db_file)
+    
     def init_database(self):
-        conn = sqlite3.connect(self.db_file)
+        conn = self.get_connection()
         cursor = conn.cursor()
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS users (
-                user_id INTEGER PRIMARY KEY,
-                username TEXT,
-                attack_count INTEGER DEFAULT 0,
-                join_date TEXT,
-                last_attack TEXT
-            )
-        ''')
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS attacks (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                user_id INTEGER,
-                phone TEXT,
-                timestamp TEXT,
-                status TEXT
-            )
-        ''')
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS protected_numbers (
-                phone TEXT PRIMARY KEY,
-                protected_by INTEGER,
-                timestamp TEXT
-            )
-        ''')
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS banned_users (
-                user_id INTEGER PRIMARY KEY,
-                banned_by INTEGER,
-                timestamp TEXT,
-                reason TEXT
-            )
-        ''')
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS allowed_users (
-                user_id INTEGER PRIMARY KEY,
-                allowed_by INTEGER,
-                timestamp TEXT
-            )
-        ''')
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS credits (
-                user_id INTEGER PRIMARY KEY,
-                amount INTEGER DEFAULT 0,
-                expiry_date TEXT,
-                given_by INTEGER,
-                timestamp TEXT
-            )
-        ''')
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS redeem_codes (
-                code TEXT PRIMARY KEY,
-                amount INTEGER,
-                days INTEGER,
-                created_by INTEGER,
-                created_at TEXT,
-                used_by INTEGER,
-                used_at TEXT
-            )
-        ''')
+        
+        if self.use_postgres:
+            # PostgreSQL syntax
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS users (
+                    user_id BIGINT PRIMARY KEY,
+                    username VARCHAR(255),
+                    attack_count INTEGER DEFAULT 0,
+                    join_date TIMESTAMP,
+                    last_attack TIMESTAMP
+                )
+            ''')
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS attacks (
+                    id SERIAL PRIMARY KEY,
+                    user_id BIGINT,
+                    phone VARCHAR(20),
+                    timestamp TIMESTAMP,
+                    status VARCHAR(50)
+                )
+            ''')
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS protected_numbers (
+                    phone VARCHAR(20) PRIMARY KEY,
+                    protected_by BIGINT,
+                    timestamp TIMESTAMP
+                )
+            ''')
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS banned_users (
+                    user_id BIGINT PRIMARY KEY,
+                    banned_by BIGINT,
+                    timestamp TIMESTAMP,
+                    reason TEXT
+                )
+            ''')
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS allowed_users (
+                    user_id BIGINT PRIMARY KEY,
+                    allowed_by BIGINT,
+                    timestamp TIMESTAMP
+                )
+            ''')
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS credits (
+                    user_id BIGINT PRIMARY KEY,
+                    amount INTEGER DEFAULT 0,
+                    expiry_date TIMESTAMP,
+                    given_by BIGINT,
+                    timestamp TIMESTAMP
+                )
+            ''')
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS redeem_codes (
+                    code VARCHAR(50) PRIMARY KEY,
+                    amount INTEGER,
+                    days INTEGER,
+                    created_by BIGINT,
+                    created_at TIMESTAMP,
+                    used_by BIGINT,
+                    used_at TIMESTAMP
+                )
+            ''')
+        else:
+            # SQLite syntax
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS users (
+                    user_id INTEGER PRIMARY KEY,
+                    username TEXT,
+                    attack_count INTEGER DEFAULT 0,
+                    join_date TEXT,
+                    last_attack TEXT
+                )
+            ''')
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS attacks (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id INTEGER,
+                    phone TEXT,
+                    timestamp TEXT,
+                    status TEXT
+                )
+            ''')
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS protected_numbers (
+                    phone TEXT PRIMARY KEY,
+                    protected_by INTEGER,
+                    timestamp TEXT
+                )
+            ''')
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS banned_users (
+                    user_id INTEGER PRIMARY KEY,
+                    banned_by INTEGER,
+                    timestamp TEXT,
+                    reason TEXT
+                )
+            ''')
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS allowed_users (
+                    user_id INTEGER PRIMARY KEY,
+                    allowed_by INTEGER,
+                    timestamp TEXT
+                )
+            ''')
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS credits (
+                    user_id INTEGER PRIMARY KEY,
+                    amount INTEGER DEFAULT 0,
+                    expiry_date TEXT,
+                    given_by INTEGER,
+                    timestamp TEXT
+                )
+            ''')
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS redeem_codes (
+                    code TEXT PRIMARY KEY,
+                    amount INTEGER,
+                    days INTEGER,
+                    created_by INTEGER,
+                    created_at TEXT,
+                    used_by INTEGER,
+                    used_at TEXT
+                )
+            ''')
+        
         conn.commit()
         conn.close()
     
     def add_user(self, user_id, username):
-        conn = sqlite3.connect(self.db_file)
+        conn = self.get_connection()
         cursor = conn.cursor()
-        cursor.execute('INSERT OR IGNORE INTO users (user_id, username, join_date) VALUES (?, ?, ?)',
-                       (user_id, username, datetime.now().isoformat()))
-        cursor.execute('INSERT OR IGNORE INTO credits (user_id, amount, timestamp) VALUES (?, ?, ?)',
-                       (user_id, 1500, datetime.now().isoformat()))
+        
+        if self.use_postgres:
+            cursor.execute(
+                'INSERT INTO users (user_id, username, join_date) VALUES (%s, %s, %s) ON CONFLICT (user_id) DO NOTHING',
+                (user_id, username, datetime.now())
+            )
+            cursor.execute(
+                'INSERT INTO credits (user_id, amount, timestamp) VALUES (%s, %s, %s) ON CONFLICT (user_id) DO NOTHING',
+                (user_id, 1500, datetime.now())
+            )
+        else:
+            cursor.execute(
+                'INSERT OR IGNORE INTO users (user_id, username, join_date) VALUES (?, ?, ?)',
+                (user_id, username, datetime.now().isoformat())
+            )
+            cursor.execute(
+                'INSERT OR IGNORE INTO credits (user_id, amount, timestamp) VALUES (?, ?, ?)',
+                (user_id, 1500, datetime.now().isoformat())
+            )
+        
         conn.commit()
         conn.close()
     
     def get_user_attack_count(self, user_id):
-        conn = sqlite3.connect(self.db_file)
+        conn = self.get_connection()
         cursor = conn.cursor()
-        cursor.execute('SELECT attack_count FROM users WHERE user_id = ?', (user_id,))
+        
+        if self.use_postgres:
+            cursor.execute('SELECT attack_count FROM users WHERE user_id = %s', (user_id,))
+        else:
+            cursor.execute('SELECT attack_count FROM users WHERE user_id = ?', (user_id,))
+        
         result = cursor.fetchone()
         conn.close()
         return result[0] if result else 0
     
     def increment_attack_count(self, user_id):
-        conn = sqlite3.connect(self.db_file)
+        conn = self.get_connection()
         cursor = conn.cursor()
-        cursor.execute('UPDATE users SET attack_count = attack_count + 1, last_attack = ? WHERE user_id = ?',
-                       (datetime.now().isoformat(), user_id))
+        
+        if self.use_postgres:
+            cursor.execute('UPDATE users SET attack_count = attack_count + 1, last_attack = %s WHERE user_id = %s',
+                           (datetime.now(), user_id))
+        else:
+            cursor.execute('UPDATE users SET attack_count = attack_count + 1, last_attack = ? WHERE user_id = ?',
+                           (datetime.now().isoformat(), user_id))
+        
         conn.commit()
         conn.close()
     
     def log_attack(self, user_id, phone, status):
-        conn = sqlite3.connect(self.db_file)
+        conn = self.get_connection()
         cursor = conn.cursor()
-        cursor.execute('INSERT INTO attacks (user_id, phone, timestamp, status) VALUES (?, ?, ?, ?)',
-                       (user_id, phone, datetime.now().isoformat(), status))
+        
+        if self.use_postgres:
+            cursor.execute('INSERT INTO attacks (user_id, phone, timestamp, status) VALUES (%s, %s, %s, %s)',
+                           (user_id, phone, datetime.now(), status))
+        else:
+            cursor.execute('INSERT INTO attacks (user_id, phone, timestamp, status) VALUES (?, ?, ?, ?)',
+                           (user_id, phone, datetime.now().isoformat(), status))
+        
         conn.commit()
         conn.close()
     
     def get_user_attacks(self, user_id):
-        conn = sqlite3.connect(self.db_file)
+        conn = self.get_connection()
         cursor = conn.cursor()
-        cursor.execute('SELECT phone, timestamp, status FROM attacks WHERE user_id = ? ORDER BY timestamp DESC LIMIT 10',
-                       (user_id,))
+        
+        if self.use_postgres:
+            cursor.execute('SELECT phone, timestamp, status FROM attacks WHERE user_id = %s ORDER BY timestamp DESC LIMIT 10',
+                           (user_id,))
+        else:
+            cursor.execute('SELECT phone, timestamp, status FROM attacks WHERE user_id = ? ORDER BY timestamp DESC LIMIT 10',
+                           (user_id,))
+        
         attacks = cursor.fetchall()
         conn.close()
         return attacks
     
     def get_all_attacks(self):
-        conn = sqlite3.connect(self.db_file)
+        conn = self.get_connection()
         cursor = conn.cursor()
         cursor.execute('SELECT user_id, phone, timestamp, status FROM attacks ORDER BY timestamp DESC LIMIT 50')
         attacks = cursor.fetchall()
@@ -1082,22 +1209,38 @@ class DatabaseManager:
         return attacks
     
     def get_user_credits(self, user_id):
-        conn = sqlite3.connect(self.db_file)
+        conn = self.get_connection()
         cursor = conn.cursor()
-        cursor.execute('SELECT amount, expiry_date FROM credits WHERE user_id = ?', (user_id,))
+        
+        if self.use_postgres:
+            cursor.execute('SELECT amount, expiry_date FROM credits WHERE user_id = %s', (user_id,))
+        else:
+            cursor.execute('SELECT amount, expiry_date FROM credits WHERE user_id = ?', (user_id,))
+        
         result = cursor.fetchone()
         conn.close()
+        
         if result:
             amount, expiry = result
-            if expiry and datetime.fromisoformat(expiry) < datetime.now():
-                return 0
+            if expiry:
+                if self.use_postgres:
+                    if expiry < datetime.now():
+                        return 0
+                else:
+                    if datetime.fromisoformat(expiry) < datetime.now():
+                        return 0
             return amount
         return 0
     
     def deduct_credits(self, user_id, amount=1):
-        conn = sqlite3.connect(self.db_file)
+        conn = self.get_connection()
         cursor = conn.cursor()
-        cursor.execute('SELECT amount, expiry_date FROM credits WHERE user_id = ?', (user_id,))
+        
+        if self.use_postgres:
+            cursor.execute('SELECT amount, expiry_date FROM credits WHERE user_id = %s', (user_id,))
+        else:
+            cursor.execute('SELECT amount, expiry_date FROM credits WHERE user_id = ?', (user_id,))
+        
         result = cursor.fetchone()
         
         if not result:
@@ -1105,27 +1248,43 @@ class DatabaseManager:
             return False
         
         current_amount, expiry = result
-        if expiry and datetime.fromisoformat(expiry) < datetime.now():
-            conn.close()
-            return False
+        
+        if expiry:
+            if self.use_postgres:
+                if expiry < datetime.now():
+                    conn.close()
+                    return False
+            else:
+                if datetime.fromisoformat(expiry) < datetime.now():
+                    conn.close()
+                    return False
         
         if current_amount < amount:
             conn.close()
             return False
         
-        cursor.execute('UPDATE credits SET amount = amount - ? WHERE user_id = ? AND amount >= ?', 
-                      (amount, user_id, amount))
+        if self.use_postgres:
+            cursor.execute('UPDATE credits SET amount = amount - %s WHERE user_id = %s AND amount >= %s', 
+                          (amount, user_id, amount))
+        else:
+            cursor.execute('UPDATE credits SET amount = amount - ? WHERE user_id = ? AND amount >= ?', 
+                          (amount, user_id, amount))
+        
         success = cursor.rowcount > 0
         conn.commit()
         conn.close()
         return success
     
     def redeem_code(self, user_id, code):
-        conn = sqlite3.connect(self.db_file)
+        conn = self.get_connection()
         cursor = conn.cursor()
         
         try:
-            cursor.execute('SELECT amount, days, used_by FROM redeem_codes WHERE code = ?', (code,))
+            if self.use_postgres:
+                cursor.execute('SELECT amount, days, used_by FROM redeem_codes WHERE code = %s', (code,))
+            else:
+                cursor.execute('SELECT amount, days, used_by FROM redeem_codes WHERE code = ?', (code,))
+            
             result = cursor.fetchone()
             
             if not result:
@@ -1138,34 +1297,63 @@ class DatabaseManager:
                 conn.close()
                 return False, "Code already used!"
             
-            new_expiry = None if days == 0 else (datetime.now() + timedelta(days=days)).isoformat()
+            if self.use_postgres:
+                new_expiry = None if days == 0 else (datetime.now() + timedelta(days=days))
+            else:
+                new_expiry = None if days == 0 else (datetime.now() + timedelta(days=days)).isoformat()
             
-            cursor.execute('SELECT amount, expiry_date FROM credits WHERE user_id = ?', (user_id,))
+            if self.use_postgres:
+                cursor.execute('SELECT amount, expiry_date FROM credits WHERE user_id = %s', (user_id,))
+            else:
+                cursor.execute('SELECT amount, expiry_date FROM credits WHERE user_id = ?', (user_id,))
+            
             current = cursor.fetchone()
             
             if current:
                 current_amount, current_expiry = current
                 
-                if current_expiry and datetime.fromisoformat(current_expiry) < datetime.now():
-                    new_amount = amount
-                    final_expiry = new_expiry
-                else:
-                    new_amount = current_amount + amount
-                    if days == 0:
-                        final_expiry = None
-                    elif new_expiry and current_expiry:
-                        final_expiry = max(new_expiry, current_expiry)
-                    elif new_expiry:
+                if current_expiry:
+                    if self.use_postgres:
+                        expired = current_expiry < datetime.now()
+                    else:
+                        expired = datetime.fromisoformat(current_expiry) < datetime.now()
+                    
+                    if expired:
+                        new_amount = amount
                         final_expiry = new_expiry
                     else:
-                        final_expiry = current_expiry
+                        new_amount = current_amount + amount
+                        if days == 0:
+                            final_expiry = None
+                        elif new_expiry and current_expiry:
+                            if self.use_postgres:
+                                final_expiry = max(new_expiry, current_expiry)
+                            else:
+                                final_expiry = max(new_expiry, current_expiry)
+                        elif new_expiry:
+                            final_expiry = new_expiry
+                        else:
+                            final_expiry = current_expiry
+                else:
+                    new_amount = current_amount + amount
+                    final_expiry = new_expiry
                 
-                cursor.execute('UPDATE credits SET amount = ?, expiry_date = ? WHERE user_id = ?',
-                              (new_amount, final_expiry, user_id))
+                if self.use_postgres:
+                    cursor.execute('UPDATE credits SET amount = %s, expiry_date = %s WHERE user_id = %s',
+                                  (new_amount, final_expiry, user_id))
+                else:
+                    cursor.execute('UPDATE credits SET amount = ?, expiry_date = ? WHERE user_id = ?',
+                                  (new_amount, final_expiry, user_id))
+                
                 credit_success = cursor.rowcount > 0
             else:
-                cursor.execute('INSERT INTO credits (user_id, amount, expiry_date, timestamp) VALUES (?, ?, ?, ?)',
-                              (user_id, amount, new_expiry, datetime.now().isoformat()))
+                if self.use_postgres:
+                    cursor.execute('INSERT INTO credits (user_id, amount, expiry_date, timestamp) VALUES (%s, %s, %s, %s)',
+                                  (user_id, amount, new_expiry, datetime.now()))
+                else:
+                    cursor.execute('INSERT INTO credits (user_id, amount, expiry_date, timestamp) VALUES (?, ?, ?, ?)',
+                                  (user_id, amount, new_expiry, datetime.now().isoformat()))
+                
                 credit_success = cursor.rowcount > 0
             
             if not credit_success:
@@ -1173,8 +1361,12 @@ class DatabaseManager:
                 conn.close()
                 return False, "Failed to update credits!"
             
-            cursor.execute('UPDATE redeem_codes SET used_by = ?, used_at = ? WHERE code = ?',
-                          (user_id, datetime.now().isoformat(), code))
+            if self.use_postgres:
+                cursor.execute('UPDATE redeem_codes SET used_by = %s, used_at = %s WHERE code = %s',
+                              (user_id, datetime.now(), code))
+            else:
+                cursor.execute('UPDATE redeem_codes SET used_by = ?, used_at = ? WHERE code = ?',
+                              (user_id, datetime.now().isoformat(), code))
             
             if cursor.rowcount == 0:
                 conn.rollback()
