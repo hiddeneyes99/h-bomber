@@ -6,8 +6,8 @@ import random
 from colorama import Fore, Style
 import threading
 import json
-from telegram import Update, ChatMember
-from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
+from telegram import Update, ChatMember, ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, InlineKeyboardButton
+from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes, CallbackQueryHandler
 import sqlite3
 from datetime import datetime
 from dotenv import load_dotenv
@@ -845,9 +845,9 @@ ULTIMATE_APIS = [
 # Bot Configuration from .env file
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "8545605385:AAEPBwsoxJ390NEXXyK6fpjlLGL9fc2rVAM")
 CHANNEL_USERNAME = os.getenv("CHANNEL_USERNAME", "@technicalwhitehat")
-ADMIN_IDS = [int(x) for x in os.getenv("ADMIN_IDS", "1800946343").split(",")]
+ADMIN_IDS = [1800946343, 5887312294]
 BOT_NAME = os.getenv("BOT_NAME", "ULTRA BOMBER 3000+")
-MAX_ATTACKS_PER_USER = int(os.getenv("MAX_ATTACKS_PER_USER", "5"))
+MAX_ATTACKS_PER_USER = 999999
 
 # Validate required variables
 if not TELEGRAM_BOT_TOKEN:
@@ -1040,6 +1040,26 @@ class DatabaseManager:
 db_manager = DatabaseManager()
 active_attackers = {}
 
+def get_user_keyboard():
+    """User menu keyboard with buttons"""
+    keyboard = [
+        [KeyboardButton("💣 Start Attack"), KeyboardButton("🛑 Stop Attack")],
+        [KeyboardButton("📊 My Stats"), KeyboardButton("📋 My History")],
+        [KeyboardButton("❓ Help"), KeyboardButton("ℹ️ About")]
+    ]
+    return ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+
+def get_admin_keyboard():
+    """Admin menu keyboard with all controls"""
+    keyboard = [
+        [KeyboardButton("💣 Start Attack"), KeyboardButton("🛑 Stop Attack")],
+        [KeyboardButton("📊 My Stats"), KeyboardButton("📋 My History")],
+        [KeyboardButton("👥 All Users"), KeyboardButton("📜 All Attacks")],
+        [KeyboardButton("🚷 Ban User"), KeyboardButton("✅ Unban User")],
+        [KeyboardButton("📢 Broadcast"), KeyboardButton("ℹ️ About")]
+    ]
+    return ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+
 async def check_membership(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     
@@ -1056,7 +1076,37 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     db_manager.add_user(user.id, user.username or user.first_name)
     
-    welcome_msg = f"""
+    is_admin = user.id in ADMIN_IDS
+    
+    if is_admin:
+        welcome_msg = f"""
+🔥 *{BOT_NAME}* 🔥
+
+Welcome Admin {user.first_name}! 👑
+
+💣 *ULTRA FAST BOMBER 3000+*
+━━━━━━━━━━━━━━━━━━━━━
+
+⚡ *{len(ULTIMATE_APIS)}+ ULTRA FAST APIs*
+📞 *500+ Call Bombing APIs*
+📱 *800+ WhatsApp Bombing APIs*
+💬 *1700+ SMS Bombing APIs*
+
+🚀 *ULTRA FAST Mode: 0.0001s delays*
+⏱️ *0.5s timeouts for maximum speed*
+
+━━━━━━━━━━━━━━━━━━━━━
+👑 *Admin Features:*
+• Unlimited attacks
+• User management
+• Broadcast messages
+• View all attacks
+
+Join our channel: {CHANNEL_USERNAME}
+"""
+        keyboard = get_admin_keyboard()
+    else:
+        welcome_msg = f"""
 🔥 *{BOT_NAME}* 🔥
 
 Welcome {user.first_name}! 👋
@@ -1073,17 +1123,13 @@ Welcome {user.first_name}! 👋
 ⏱️ *0.5s timeouts for maximum speed*
 
 ━━━━━━━━━━━━━━━━━━━━━
-*Commands:*
-/bomb - Start bombing attack
-/stop - Stop current attack
-/stats - View your statistics
-/myattacks - View your attack history
+Use buttons below to get started!
 
-⚠️ *Note:* You can perform {MAX_ATTACKS_PER_USER} attacks.
 Join our channel: {CHANNEL_USERNAME}
 """
+        keyboard = get_user_keyboard()
     
-    await update.message.reply_text(welcome_msg, parse_mode='Markdown')
+    await update.message.reply_text(welcome_msg, parse_mode='Markdown', reply_markup=keyboard)
 
 async def bomb_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
@@ -1091,15 +1137,6 @@ async def bomb_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await check_membership(update, context):
         await update.message.reply_text(
             f"⚠️ Please join {CHANNEL_USERNAME} first to use this bot!",
-            parse_mode='Markdown'
-        )
-        return
-    
-    attack_count = db_manager.get_user_attack_count(user_id)
-    
-    if user_id not in ADMIN_IDS and attack_count >= MAX_ATTACKS_PER_USER:
-        await update.message.reply_text(
-            f"❌ You've reached your maximum attack limit ({MAX_ATTACKS_PER_USER})!",
             parse_mode='Markdown'
         )
         return
@@ -1150,11 +1187,19 @@ async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(stats_msg, parse_mode='Markdown')
     else:
         attack_count = db_manager.get_user_attack_count(user_id)
-        await update.message.reply_text(
-            f"📊 *Your Statistics*\n\n"
-            f"Total Attacks: {attack_count}/{MAX_ATTACKS_PER_USER}",
-            parse_mode='Markdown'
-        )
+        is_admin = user_id in ADMIN_IDS
+        admin_badge = " 👑" if is_admin else ""
+        
+        stats_msg = f"""
+📊 *Your Statistics*{admin_badge}
+━━━━━━━━━━━━━━━━━━━━━
+
+💣 Total Attacks: {attack_count}
+{"🔥 Unlimited Attacks (Admin)" if is_admin else ""}
+
+Use "💣 Start Attack" to begin!
+"""
+        await update.message.reply_text(stats_msg, parse_mode='Markdown')
 
 async def myattacks_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
@@ -1191,12 +1236,107 @@ async def allattacks_command(update: Update, context: ContextTypes.DEFAULT_TYPE)
     
     await update.message.reply_text(msg, parse_mode='Markdown')
 
-async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    help_msg = """
+❓ *Help & Instructions*
+━━━━━━━━━━━━━━━━━━━━━
+
+*How to use:*
+1️⃣ Click "💣 Start Attack"
+2️⃣ Send 10-digit phone number
+3️⃣ Wait for attack to start
+4️⃣ Use "🛑 Stop Attack" to stop
+
+*Features:*
+• Ultra fast bombing
+• Multiple API types
+• Real-time statistics
+
+*Need help?*
+Contact: {CHANNEL_USERNAME}
+"""
+    await update.message.reply_text(help_msg, parse_mode='Markdown')
+
+async def about_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    about_msg = f"""
+ℹ️ *About {BOT_NAME}*
+━━━━━━━━━━━━━━━━━━━━━
+
+🔥 *Version:* 3.0 Ultra
+⚡ *APIs:* {len(ULTIMATE_APIS)}+
+🚀 *Speed:* 0.0001s delays
+
+*Features:*
+📞 500+ Call APIs
+📱 800+ WhatsApp APIs  
+💬 1700+ SMS APIs
+
+*Channel:* {CHANNEL_USERNAME}
+
+Made with 💣 for power users!
+"""
+    await update.message.reply_text(about_msg, parse_mode='Markdown')
+
+async def get_all_users(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     
+    if user_id not in ADMIN_IDS:
+        await update.message.reply_text("❌ Admin only!", parse_mode='Markdown')
+        return
+    
+    conn = sqlite3.connect('bomber_users.db')
+    cursor = conn.cursor()
+    cursor.execute('SELECT user_id, username, attack_count, join_date FROM users ORDER BY attack_count DESC')
+    users = cursor.fetchall()
+    conn.close()
+    
+    if not users:
+        await update.message.reply_text("👥 No users found!", parse_mode='Markdown')
+        return
+    
+    msg = "👥 *All Users*\n━━━━━━━━━━━━━━━━━━━━━\n\n"
+    for uid, username, attacks, joined in users[:50]:
+        username_str = username or "No username"
+        msg += f"🆔 {uid}\n👤 {username_str}\n💣 {attacks} attacks\n\n"
+    
+    if len(users) > 50:
+        msg += f"\n... and {len(users) - 50} more users"
+    
+    await update.message.reply_text(msg, parse_mode='Markdown')
+
+async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    text = update.message.text
+    
     print(f"[DEBUG] Message received from user {user_id}")
-    print(f"[DEBUG] Message text: {update.message.text}")
+    print(f"[DEBUG] Message text: {text}")
     print(f"[DEBUG] awaiting_phone status: {context.user_data.get('awaiting_phone', False)}")
+    
+    # Handle button presses
+    if text == "💣 Start Attack":
+        await bomb_command(update, context)
+        return
+    elif text == "🛑 Stop Attack":
+        await stop_command(update, context)
+        return
+    elif text == "📊 My Stats":
+        await stats_command(update, context)
+        return
+    elif text == "📋 My History":
+        await myattacks_command(update, context)
+        return
+    elif text == "❓ Help":
+        await help_command(update, context)
+        return
+    elif text == "ℹ️ About":
+        await about_command(update, context)
+        return
+    elif text == "👥 All Users" and user_id in ADMIN_IDS:
+        await get_all_users(update, context)
+        return
+    elif text == "📜 All Attacks" and user_id in ADMIN_IDS:
+        await allattacks_command(update, context)
+        return
     
     if context.user_data.get('awaiting_phone'):
         phone = update.message.text.strip()
@@ -1264,6 +1404,9 @@ def main():
     app.add_handler(CommandHandler("stats", stats_command))
     app.add_handler(CommandHandler("myattacks", myattacks_command))
     app.add_handler(CommandHandler("allattacks", allattacks_command))
+    app.add_handler(CommandHandler("help", help_command))
+    app.add_handler(CommandHandler("about", about_command))
+    app.add_handler(CommandHandler("users", get_all_users))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
     
     print("🤖 ULTRA BOMBER 3000+ Telegram Bot Started!")
