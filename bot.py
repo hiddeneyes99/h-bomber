@@ -1395,7 +1395,7 @@ async def allattacks_command(update: Update, context: ContextTypes.DEFAULT_TYPE)
     await update.message.reply_text(msg, parse_mode='Markdown')
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    help_msg = """
+    help_msg = f"""
 ❓ *Help & Instructions*
 ━━━━━━━━━━━━━━━━━━━━━
 
