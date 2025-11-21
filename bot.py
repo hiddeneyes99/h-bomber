@@ -2413,26 +2413,18 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         asyncio.create_task(destroyer.start_destruction())
 
-        await asyncio.sleep(5)
-
-        stats = destroyer.stats
         status_msg = f"""
-✅ *ATTACK IN PROGRESS!*
+✅ *ATTACK STARTED!*
 ━━━━━━━━━━━━━━━━━━━━━
 
 🎯 *Target:* +91{phone}
+💣 *APIs Loaded:* {len(ULTIMATE_APIS)}
 
-💣 *Requests:* {stats['total_requests']}
-✅ *Hits:* {stats['successful_hits']}
+⚡ Attack is running in background!
+🤖 Bot will respond to all commands!
 
-📞 *Calls:* {stats['calls_sent']}
-📱 *WhatsApp:* {stats['whatsapp_sent']}
-💬 *SMS:* {stats['sms_sent']}
-
-⚡ *Speed:* {stats['requests_per_second']} req/s
-
-Use /stop to stop the attack
-Use /stats for live statistics
+📊 Use /stats to check live statistics
+🛑 Use /stop to stop the attack
 """
         await update.message.reply_text(status_msg, parse_mode='Markdown')
         return

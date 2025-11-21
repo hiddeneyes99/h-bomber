@@ -7,3 +7,7 @@ colorama
 python-dotenv
 python-telegram-bot
 telegram
+aiohttp
+colorama
+python-dotenv
+python-telegram-bot
