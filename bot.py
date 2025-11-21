@@ -1418,7 +1418,7 @@ class DatabaseManager:
             (user_id, username, datetime.now().isoformat()))
         cursor.execute(
             'INSERT OR IGNORE INTO credits (user_id, amount, timestamp) VALUES (?, ?, ?)',
-            (user_id, 1500, datetime.now().isoformat()))
+            (user_id, 500, datetime.now().isoformat()))
         conn.commit()
         conn.close()
 
@@ -1632,9 +1632,10 @@ def get_admin_keyboard():
         [KeyboardButton("➕ Give Credit"),
          KeyboardButton("🔁 Gen Redeem Code")],
         [KeyboardButton("📜 Redeem Codes"),
-         KeyboardButton("📊 Credits")],
-        [KeyboardButton("📣 Broadcast"),
-         KeyboardButton("⬅️ Back")]
+         KeyboardButton("💰 My Credits")],
+        [KeyboardButton("📊 My Stats"),
+         KeyboardButton("📣 Broadcast")],
+        [KeyboardButton("⬅️ Back")]
     ]
     return ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
 
@@ -2078,7 +2079,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif text == "🛑 Stop Attack":
         await stop_command(update, context)
         return
-    elif text == "📊 My Stats" or text == "📊 Credits":
+    elif text == "📊 My Stats":
         await stats_command(update, context)
         return
     elif text == "💰 My Credits":
